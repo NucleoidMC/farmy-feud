@@ -226,6 +226,7 @@ public final class FfActive {
 
     private WinResult computeWinResult() {
         FfTeamState winningTeam = null;
+        boolean draw = false;
 
         for (FfTeamState team : this.teams.values()) {
             if (winningTeam == null) {
@@ -235,15 +236,16 @@ public final class FfActive {
 
             // two teams have the same sheep count!
             if (team.getCapturedSheep() == winningTeam.getCapturedSheep()) {
-                return WinResult.draw();
+                draw = true;
             }
 
             if (team.getCapturedSheep() > winningTeam.getCapturedSheep()) {
                 winningTeam = team;
+                draw = false;
             }
         }
 
-        if (winningTeam == null) {
+        if (winningTeam == null || draw == true) {
             return WinResult.draw();
         }
 
