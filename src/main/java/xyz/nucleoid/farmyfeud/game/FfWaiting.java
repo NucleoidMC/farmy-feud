@@ -4,19 +4,20 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
-import xyz.nucleoid.fantasy.BubbleWorldConfig;
+import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.farmyfeud.game.active.FfActive;
 import xyz.nucleoid.farmyfeud.game.map.FfMap;
 import xyz.nucleoid.farmyfeud.game.map.FfMapBuilder;
 import xyz.nucleoid.plasmid.game.GameOpenContext;
 import xyz.nucleoid.plasmid.game.GameOpenProcedure;
+import xyz.nucleoid.plasmid.game.GameResult;
 import xyz.nucleoid.plasmid.game.GameSpace;
-import xyz.nucleoid.plasmid.game.GameWaitingLobby;
-import xyz.nucleoid.plasmid.game.StartResult;
-import xyz.nucleoid.plasmid.game.event.PlayerAddListener;
-import xyz.nucleoid.plasmid.game.event.PlayerDeathListener;
-import xyz.nucleoid.plasmid.game.event.RequestStartListener;
+import xyz.nucleoid.plasmid.game.common.GameWaitingLobby;
+import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
+import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
 public final class FfWaiting {
     private final ServerWorld world;
@@ -26,8 +27,8 @@ public final class FfWaiting {
 
     private final FfSpawnLogic spawnLogic;
 
-    private FfWaiting(GameSpace gameSpace, FfMap map, FfConfig config) {
-        this.world = gameSpace.getWorld();
+    private FfWaiting(GameSpace gameSpace, ServerWorld world, FfMap map, FfConfig config) {
+        this.world = world;
         this.gameSpace = gameSpace;
         this.map = map;
         this.config = config;
@@ -36,29 +37,27 @@ public final class FfWaiting {
     }
 
     public static GameOpenProcedure open(GameOpenContext<FfConfig> context) {
-        FfConfig config = context.getConfig();
+        FfConfig config = context.config();
 
-        FfMap map = new FfMapBuilder(config).create();
+        FfMap map = new FfMapBuilder(config).create(context.server());
 
-        BubbleWorldConfig worldConfig = new BubbleWorldConfig()
-                .setGenerator(map.createGenerator(context.getServer()))
-                .setDefaultGameMode(GameMode.SPECTATOR);
+        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+                .setGenerator(map.createGenerator(context.server()));
 
-        return context.createOpenProcedure(worldConfig, game -> {
-            FfWaiting waiting = new FfWaiting(game.getSpace(), map, config);
+        return context.openWithWorld(worldConfig, (game, world) -> {
+            FfWaiting waiting = new FfWaiting(game.getGameSpace(), world, map, config);
 
-            GameWaitingLobby.applyTo(game, config.players);
-
-            game.on(RequestStartListener.EVENT, waiting::requestStart);
-
-            game.on(PlayerAddListener.EVENT, waiting::addPlayer);
-            game.on(PlayerDeathListener.EVENT, waiting::onPlayerDeath);
+            GameWaitingLobby.addTo(game, config.players());
+            game.listen(GamePlayerEvents.OFFER, player -> player.accept(world, map.getCenterSpawn() != null ? map.getCenterSpawn().center() : new Vec3d(0, 256, 0)));
+            game.listen(GameActivityEvents.REQUEST_START, waiting::requestStart);
+            game.listen(GamePlayerEvents.ADD, waiting::addPlayer);
+            game.listen(PlayerDeathEvent.EVENT, waiting::onPlayerDeath);
         });
     }
 
-    private StartResult requestStart() {
-        FfActive.open(this.gameSpace, this.map, this.config);
-        return StartResult.OK;
+    private GameResult requestStart() {
+        FfActive.open(this.gameSpace, this.world, this.map, this.config);
+        return GameResult.ok();
     }
 
     private void addPlayer(ServerPlayerEntity player) {

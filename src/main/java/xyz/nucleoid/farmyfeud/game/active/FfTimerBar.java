@@ -3,15 +3,10 @@ package xyz.nucleoid.farmyfeud.game.active;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
-import xyz.nucleoid.plasmid.widget.BossBarWidget;
-import xyz.nucleoid.plasmid.widget.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.common.widget.BossBarWidget;
 
-public final class FfTimerBar {
-    private final BossBarWidget widget;
-
-    FfTimerBar(BossBarWidget widget) {
-        this.widget = widget;
-    }
+public record FfTimerBar(BossBarWidget widget) {
 
     static FfTimerBar create(GlobalWidgets widgets) {
         LiteralText title = new LiteralText("Game ends in...");

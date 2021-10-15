@@ -16,8 +16,8 @@ public final class FarmyFeud implements ModInitializer {
     public void onInitialize() {
         GameType.register(
                 new Identifier(FarmyFeud.ID, "farmy_feud"),
-                FfWaiting::open,
-                FfConfig.CODEC
+                FfConfig.CODEC,
+                FfWaiting::open
         );
     }
 }

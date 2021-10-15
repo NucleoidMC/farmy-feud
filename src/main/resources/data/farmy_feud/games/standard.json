@@ -2,15 +2,22 @@
   "type": "farmy_feud:farmy_feud",
   "name": "Farmy Feud",
   "map": "farmy_feud:farmy_feud_1",
+  "icon": {
+    "id": "player_head",
+    "Count": 1,
+    "tag": {
+      "SkullOwner": "MHF_Sheep"
+    }
+  },
   "players": {
     "min": 1,
     "max": 100,
     "threshold": 4
   },
   "teams": [
-    {"key": "red", "display": "Red", "color": "red"},
-    {"key": "yellow", "display": "Yellow", "color": "yellow"},
-    {"key": "green", "display": "Green", "color": "green"},
-    {"key": "blue", "display": "Blue", "color": "blue"}
+    {"key": "red", "name": "Red", "color": "red"},
+    {"key": "yellow", "name": "Yellow", "color": "yellow"},
+    {"key": "green", "name": "Green", "color": "green"},
+    {"key": "blue", "name": "Blue", "color": "blue"}
   ]
 }

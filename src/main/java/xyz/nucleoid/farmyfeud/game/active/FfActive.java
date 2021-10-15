@@ -28,24 +28,20 @@ import xyz.nucleoid.farmyfeud.entity.FarmSheepEntity;
 import xyz.nucleoid.farmyfeud.game.FfConfig;
 import xyz.nucleoid.farmyfeud.game.FfSpawnLogic;
 import xyz.nucleoid.farmyfeud.game.map.FfMap;
+import xyz.nucleoid.map_templates.BlockBounds;
+import xyz.nucleoid.plasmid.game.GameCloseReason;
 import xyz.nucleoid.plasmid.game.GameSpace;
-import xyz.nucleoid.plasmid.game.event.GameCloseListener;
-import xyz.nucleoid.plasmid.game.event.GameOpenListener;
-import xyz.nucleoid.plasmid.game.event.GameTickListener;
-import xyz.nucleoid.plasmid.game.event.HandSwingListener;
-import xyz.nucleoid.plasmid.game.event.OfferPlayerListener;
-import xyz.nucleoid.plasmid.game.event.PlayerAddListener;
-import xyz.nucleoid.plasmid.game.event.PlayerDamageListener;
-import xyz.nucleoid.plasmid.game.event.PlayerDeathListener;
-import xyz.nucleoid.plasmid.game.event.UseItemListener;
-import xyz.nucleoid.plasmid.game.player.GameTeam;
-import xyz.nucleoid.plasmid.game.player.JoinResult;
-import xyz.nucleoid.plasmid.game.rule.GameRule;
-import xyz.nucleoid.plasmid.game.rule.RuleResult;
-import xyz.nucleoid.plasmid.util.BlockBounds;
+import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.common.team.*;
+import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.game.rule.GameRuleType;
 import xyz.nucleoid.plasmid.util.ColoredBlocks;
 import xyz.nucleoid.plasmid.util.ItemStackBuilder;
-import xyz.nucleoid.plasmid.widget.GlobalWidgets;
+import xyz.nucleoid.stimuli.event.item.ItemUseEvent;
+import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
+import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
+import xyz.nucleoid.stimuli.event.player.PlayerSwingHandEvent;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -89,7 +85,8 @@ public final class FfActive {
     public final FfScoreboard scoreboard;
     private final FfTimerBar timerBar;
 
-    private final Map<GameTeam, FfTeamState> teams = new HashMap<>();
+    private final Map<GameTeamKey, FfTeamState> teams = new HashMap<>();
+    public final TeamManager teamManager;
     private final Map<UUID, FfParticipant> participants = new HashMap<>();
 
     private long nextArrowTime;
@@ -99,8 +96,8 @@ public final class FfActive {
 
     private long closeTime = -1;
 
-    private FfActive(GameSpace gameSpace, FfMap map, FfConfig config, GlobalWidgets widgets) {
-        this.world = gameSpace.getWorld();
+    private FfActive(GameSpace gameSpace, ServerWorld world, FfMap map, FfConfig config, TeamManager manager, GlobalWidgets widgets) {
+        this.world = world;
         this.gameSpace = gameSpace;
         this.map = map;
         this.config = config;
@@ -108,53 +105,59 @@ public final class FfActive {
         this.spawnLogic = new FfSpawnLogic(this.world, this.map);
         this.captureLogic = new FfCaptureLogic(this);
 
-        this.scoreboard = gameSpace.addResource(FfScoreboard.create(this, widgets));
+        this.teamManager = manager;
+
+        this.scoreboard = FfScoreboard.create(this, widgets);
         this.timerBar = FfTimerBar.create(widgets);
 
-        for (GameTeam team : config.teams) {
-            this.teams.put(team, new FfTeamState(team));
+        for (GameTeam team : config.teams()) {
+            this.teamManager.addTeam(team);
+            this.teams.put(team.key(), new FfTeamState(team.key()));
         }
     }
 
-    public static void open(GameSpace gameSpace, FfMap map, FfConfig config) {
-        gameSpace.openGame(game -> {
-            GlobalWidgets widgets = new GlobalWidgets(game);
+    public static void open(GameSpace gameSpace, ServerWorld world, FfMap map, FfConfig config) {
+        gameSpace.setActivity(game -> {
+            GlobalWidgets widgets = GlobalWidgets.addTo(game);
 
-            FfActive active = new FfActive(gameSpace, map, config, widgets);
+            var teamManager = TeamManager.addTo(game);
 
-            game.setRule(GameRule.CRAFTING, RuleResult.DENY);
-            game.setRule(GameRule.PORTALS, RuleResult.DENY);
-            game.setRule(GameRule.PVP, RuleResult.ALLOW);
-            game.setRule(GameRule.FALL_DAMAGE, RuleResult.ALLOW);
-            game.setRule(GameRule.BLOCK_DROPS, RuleResult.DENY);
-            game.setRule(GameRule.HUNGER, RuleResult.DENY);
-            game.setRule(GameRule.THROW_ITEMS, RuleResult.DENY);
-            game.setRule(GameRule.TEAM_CHAT, RuleResult.ALLOW);
+            FfActive active = new FfActive(gameSpace, world, map, config, teamManager, widgets);
 
-            game.on(GameOpenListener.EVENT, active::open);
-            game.on(GameCloseListener.EVENT, active::close);
+            game.setRule(GameRuleType.CRAFTING, ActionResult.FAIL);
+            game.setRule(GameRuleType.PORTALS, ActionResult.FAIL);
+            game.setRule(GameRuleType.PVP, ActionResult.SUCCESS);
+            game.setRule(GameRuleType.FALL_DAMAGE, ActionResult.SUCCESS);
+            game.setRule(GameRuleType.BLOCK_DROPS, ActionResult.FAIL);
+            game.setRule(GameRuleType.HUNGER, ActionResult.FAIL);
+            game.setRule(GameRuleType.THROW_ITEMS, ActionResult.FAIL);
 
-            game.on(OfferPlayerListener.EVENT, player -> JoinResult.ok());
-            game.on(PlayerAddListener.EVENT, active::addPlayer);
+            TeamChat.addTo(game, teamManager);
 
-            game.on(GameTickListener.EVENT, active::tick);
+            game.listen(GameActivityEvents.ENABLE, active::open);
+            game.listen(GameActivityEvents.DISABLE, active::close);
 
-            game.on(PlayerDeathListener.EVENT, active::onPlayerDeath);
-            game.on(PlayerDamageListener.EVENT, active::onPlayerDamage);
+            game.listen(GamePlayerEvents.OFFER, player -> player.accept(world, map.getCenterSpawn() != null ? map.getCenterSpawn().center() : new Vec3d(0, 256, 0)));
+            game.listen(GamePlayerEvents.ADD, active::addPlayer);
 
-            game.on(UseItemListener.EVENT, active::onUseItem);
-            game.on(HandSwingListener.EVENT, active::onSwingHand);
+            game.listen(GameActivityEvents.TICK, active::tick);
+
+            game.listen(PlayerDeathEvent.EVENT, active::onPlayerDeath);
+            game.listen(PlayerDamageEvent.EVENT, active::onPlayerDamage);
+
+            game.listen(ItemUseEvent.EVENT, active::onUseItem);
+            game.listen(PlayerSwingHandEvent.EVENT, active::onSwingHand);
         });
     }
 
     private void open() {
         long time = this.world.getTime();
 
-        this.endTime = time + this.config.gameDuration;
+        this.endTime = time + this.config.gameDuration();
         this.initNextSpawnTime(time);
         this.initNextArrowTime(time);
 
-        int sheepCount = (this.config.teams.size() * 3) / 2;
+        int sheepCount = (this.config.teams().size() * 3) / 2;
         for (int i = 0; i < sheepCount; i++) {
             this.spawnSheep();
         }
@@ -179,7 +182,7 @@ public final class FfActive {
 
         if (this.closeTime != -1) {
             if (time >= this.closeTime) {
-                this.gameSpace.close();
+                this.gameSpace.close(GameCloseReason.FINISHED);
             }
             return;
         }
@@ -187,14 +190,14 @@ public final class FfActive {
         this.scoreboard.tick();
 
         WinResult winResult = this.tickActive(time);
-        if (winResult.isWin()) {
+        if (winResult.win()) {
             this.broadcastWinResult(winResult);
             this.closeTime = time + 20 * 5;
         }
     }
 
     private WinResult tickActive(long time) {
-        this.timerBar.update(this.endTime - time, this.config.gameDuration);
+        this.timerBar.update(this.endTime - time, this.config.gameDuration());
 
         if (time >= this.endTime) {
             return this.computeWinResult();
@@ -245,7 +248,7 @@ public final class FfActive {
             }
         }
 
-        if (winningTeam == null || draw == true) {
+        if (winningTeam == null || draw) {
             return WinResult.draw();
         }
 
@@ -255,8 +258,8 @@ public final class FfActive {
     private void tickArrows(long time) {
         if (time >= this.nextArrowTime) {
             this.players().forEach(player -> {
-                if (player.inventory.count(Items.ARROW) < this.config.maxArrows) {
-                    player.inventory.offerOrDrop(this.world, new ItemStack(Items.ARROW));
+                if (player.getInventory().count(Items.ARROW) < this.config.maxArrows()) {
+                    player.getInventory().offerOrDrop(new ItemStack(Items.ARROW));
                 }
             });
 
@@ -272,11 +275,11 @@ public final class FfActive {
     }
 
     private void initNextSpawnTime(long currentTime) {
-        this.nextSpawnTime = currentTime + this.config.spawnInterval;
+        this.nextSpawnTime = currentTime + this.config.spawnInterval();
     }
 
     private void initNextArrowTime(long currentTime) {
-        this.nextArrowTime = currentTime + this.config.arrowInterval;
+        this.nextArrowTime = currentTime + this.config.arrowInterval();
     }
 
     private void spawnSheep() {
@@ -287,7 +290,7 @@ public final class FfActive {
 
         FarmSheepEntity entity = new FarmSheepEntity(this.world, this);
 
-        Vec3d spawnPos = centerSpawn.getCenter();
+        Vec3d spawnPos = centerSpawn.center();
         entity.refreshPositionAndAngles(spawnPos.x, spawnPos.y + 0.5, spawnPos.z, 0.0F, 0.0F);
 
         entity.setOwnerTeam(null, centerSpawn);
@@ -327,7 +330,7 @@ public final class FfActive {
                     return TypedActionResult.consume(heldStack);
                 }
             }
-        } else if (heldStack.getItem().isIn(FabricToolTags.AXES)) {
+        } else if (heldStack.isIn(FabricToolTags.AXES)) {
             ItemCooldownManager cooldown = player.getItemCooldownManager();
             if (!cooldown.isCoolingDown(heldStack.getItem())) {
                 FfParticipant participant = this.getParticipant(player);
@@ -346,7 +349,7 @@ public final class FfActive {
     }
 
     public boolean tryPickUpSheep(ServerPlayerEntity player, FfParticipant participant, FarmSheepEntity sheep) {
-        GameTeam currentTeam = this.captureLogic.getTeamAt(sheep.getPos());
+        GameTeamKey currentTeam = this.captureLogic.getTeamAt(sheep.getPos());
         if (currentTeam == participant.team) {
             return false;
         }
@@ -360,9 +363,9 @@ public final class FfActive {
 
     public void tickSheep(FarmSheepEntity sheep) {
         if (this.world.getTime() % 10 == 0) {
-            GameTeam lastPickUpTeam = sheep.getLastPickUpTeam();
+            GameTeamKey lastPickUpTeam = sheep.getLastPickUpTeam();
             if (lastPickUpTeam != null) {
-                GameTeam team = this.captureLogic.getTeamAt(sheep.getPos());
+                GameTeamKey team = this.captureLogic.getTeamAt(sheep.getPos());
                 if (team == lastPickUpTeam) {
                     this.captureLogic.captureSheep(sheep, team);
                 }
@@ -376,7 +379,7 @@ public final class FfActive {
                         home = this.map.getCenterSpawn();
                     }
 
-                    respawnPos = home.getCenter();
+                    respawnPos = home.center();
                 }
 
                 sheep.detach();
@@ -407,7 +410,7 @@ public final class FfActive {
             return;
         }
 
-        GameTeam captureTeam = this.captureLogic.getTeamAt(player.getPos());
+        GameTeamKey captureTeam = this.captureLogic.getTeamAt(player.getPos());
         if (captureTeam == participant.team) {
             List<FarmSheepEntity> entities = participant.carryStack.dropAll(player);
             this.throwEntities(player, entities, 0.5);
@@ -475,38 +478,42 @@ public final class FfActive {
     }
 
     private void spawnParticipant(ServerPlayerEntity player, FfParticipant participant) {
-        GameTeam team = participant.team;
+        GameTeamKey team = participant.team;
+
+        var teamConfig = this.teamManager.getTeamConfig(team);
 
         this.spawnLogic.spawnPlayerAtTeam(player, team);
         this.spawnLogic.resetPlayer(player, GameMode.ADVENTURE);
 
-        player.inventory.insertStack(0, SWORD.build());
-        player.inventory.insertStack(1, AXE.build());
-        player.inventory.insertStack(2, BOW.build());
-        player.inventory.insertStack(4, SADDLE.build());
+        player.getInventory().insertStack(0, SWORD.build());
+        player.getInventory().insertStack(1, AXE.build());
+        player.getInventory().insertStack(2, BOW.build());
+        player.getInventory().insertStack(4, SADDLE.build());
 
-        player.inventory.insertStack(8,
-                ItemStackBuilder.of(ColoredBlocks.wool(team.getDye()))
-                        .setName(new LiteralText(team.getDisplay() + " Team")
-                                .formatted(team.getFormatting())
+        player.getInventory().insertStack(8,
+                ItemStackBuilder.of(ColoredBlocks.wool(teamConfig.blockDyeColor()))
+                        .setName(teamConfig.name().shallowCopy().append(" Team")
+                                .formatted(teamConfig.chatFormatting())
                         )
                         .build()
         );
 
-        int color = team.getColor();
-        player.equipStack(EquipmentSlot.HEAD, ItemStackBuilder.of(Items.LEATHER_HELMET).setUnbreakable().setColor(color).build());
-        player.equipStack(EquipmentSlot.CHEST, ItemStackBuilder.of(Items.LEATHER_CHESTPLATE).setUnbreakable().setColor(color).build());
-        player.equipStack(EquipmentSlot.LEGS, ItemStackBuilder.of(Items.LEATHER_LEGGINGS).setUnbreakable().setColor(color).build());
-        player.equipStack(EquipmentSlot.FEET, ItemStackBuilder.of(Items.LEATHER_BOOTS).setUnbreakable().setColor(color).build());
+        int color = teamConfig.dyeColor().getRgb();
+        player.equipStack(EquipmentSlot.HEAD, ItemStackBuilder.of(Items.LEATHER_HELMET).setUnbreakable().setDyeColor(color).build());
+        player.equipStack(EquipmentSlot.CHEST, ItemStackBuilder.of(Items.LEATHER_CHESTPLATE).setUnbreakable().setDyeColor(color).build());
+        player.equipStack(EquipmentSlot.LEGS, ItemStackBuilder.of(Items.LEATHER_LEGGINGS).setUnbreakable().setDyeColor(color).build());
+        player.equipStack(EquipmentSlot.FEET, ItemStackBuilder.of(Items.LEATHER_BOOTS).setUnbreakable().setDyeColor(color).build());
     }
 
     private void broadcastWinResult(WinResult result) {
-        GameTeam winningTeam = result.getWinningTeam();
+        GameTeamKey winningTeam = result.winningTeam();
 
         Text message;
         if (winningTeam != null) {
-            message = new LiteralText(winningTeam.getDisplay() + " won the game!")
-                    .formatted(Formatting.BOLD, winningTeam.getFormatting());
+            var teamConfig = this.teamManager.getTeamConfig(winningTeam);
+
+            message = teamConfig.name().shallowCopy().append(" won the game!")
+                    .formatted(Formatting.BOLD, teamConfig.chatFormatting());
         } else {
             message = new LiteralText("The game ended in a draw!")
                     .formatted(Formatting.BOLD, Formatting.GRAY);
@@ -519,7 +526,7 @@ public final class FfActive {
         return this.participants.values().stream();
     }
 
-    public Stream<UUID> participantsFor(GameTeam team) {
+    public Stream<UUID> participantsFor(GameTeamKey team) {
         return this.teams.get(team).participants();
     }
 
@@ -527,14 +534,13 @@ public final class FfActive {
         return this.playersBy(this.participants().map(participant -> participant.playerId));
     }
 
-    public Stream<ServerPlayerEntity> playersFor(GameTeam team) {
+    public Stream<ServerPlayerEntity> playersFor(GameTeamKey team) {
         return this.playersBy(this.participantsFor(team));
     }
 
     private Stream<ServerPlayerEntity> playersBy(Stream<UUID> participants) {
-        ServerWorld world = this.gameSpace.getWorld();
         return participants
-                .map(id -> (ServerPlayerEntity) world.getPlayerByUuid(id))
+                .map(id -> (ServerPlayerEntity) this.world.getPlayerByUuid(id))
                 .filter(Objects::nonNull);
     }
 
@@ -542,7 +548,7 @@ public final class FfActive {
         return this.teams.values().stream();
     }
 
-    public FfTeamState getTeam(GameTeam team) {
+    public FfTeamState getTeam(GameTeamKey team) {
         return this.teams.get(team);
     }
 
@@ -551,7 +557,7 @@ public final class FfActive {
             FfTeamState teamState = this.getSmallestTeam();
 
             teamState.addParticipant(uuid);
-            this.scoreboard.addPlayer(player, teamState.team);
+            this.teamManager.addPlayerTo(player, teamState.team);
 
             return new FfParticipant(player, teamState.team);
         });
@@ -574,16 +580,9 @@ public final class FfActive {
                 .orElseThrow(() -> new IllegalStateException("no teams present!"));
     }
 
-    private static class WinResult {
-        private final GameTeam winningTeam;
-        private final boolean win;
+    private record WinResult(@Nullable GameTeamKey winningTeam, boolean win) {
 
-        private WinResult(GameTeam winningTeam, boolean win) {
-            this.winningTeam = winningTeam;
-            this.win = win;
-        }
-
-        public static WinResult win(GameTeam winningTeam) {
+        public static WinResult win(GameTeamKey winningTeam) {
             return new WinResult(winningTeam, true);
         }
 
@@ -593,15 +592,6 @@ public final class FfActive {
 
         public static WinResult no() {
             return new WinResult(null, false);
-        }
-
-        @Nullable
-        public GameTeam getWinningTeam() {
-            return this.winningTeam;
-        }
-
-        public boolean isWin() {
-            return this.win;
         }
     }
 }

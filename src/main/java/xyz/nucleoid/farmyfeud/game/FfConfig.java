@@ -3,12 +3,14 @@ package xyz.nucleoid.farmyfeud.game;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.Identifier;
-import xyz.nucleoid.plasmid.game.config.PlayerConfig;
-import xyz.nucleoid.plasmid.game.player.GameTeam;
+import xyz.nucleoid.plasmid.game.common.config.PlayerConfig;
+import xyz.nucleoid.plasmid.game.common.team.GameTeam;
 
 import java.util.List;
 
-public final class FfConfig {
+public record FfConfig(Identifier map, PlayerConfig players,
+                       List<GameTeam> teams, long gameDuration,
+                       long spawnInterval, int maxArrows, long arrowInterval) {
     public static final Codec<FfConfig> CODEC = RecordCodecBuilder.create(instance -> {
         return instance.group(
                 Identifier.CODEC.fieldOf("map").forGetter(config -> config.map),
@@ -20,24 +22,4 @@ public final class FfConfig {
                 Codec.LONG.optionalFieldOf("arrow_interval", 20L * 10).forGetter(config -> config.arrowInterval)
         ).apply(instance, FfConfig::new);
     });
-
-    public final Identifier map;
-    public final PlayerConfig players;
-    public final List<GameTeam> teams;
-
-    public final long gameDuration;
-    public final long spawnInterval;
-
-    public final int maxArrows;
-    public final long arrowInterval;
-
-    public FfConfig(Identifier map, PlayerConfig players, List<GameTeam> teams, long gameDuration, long spawnInterval, int maxArrows, long arrowInterval) {
-        this.map = map;
-        this.players = players;
-        this.teams = teams;
-        this.gameDuration = gameDuration;
-        this.spawnInterval = spawnInterval;
-        this.maxArrows = maxArrows;
-        this.arrowInterval = arrowInterval;
-    }
 }

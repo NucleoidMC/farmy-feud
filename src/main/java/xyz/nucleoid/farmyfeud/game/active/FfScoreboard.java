@@ -1,32 +1,14 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import net.minecraft.scoreboard.AbstractTeam;
-import net.minecraft.scoreboard.ServerScoreboard;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import org.apache.commons.lang3.RandomStringUtils;
-import xyz.nucleoid.plasmid.game.player.GameTeam;
-import xyz.nucleoid.plasmid.widget.GlobalWidgets;
-import xyz.nucleoid.plasmid.widget.SidebarWidget;
+import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.common.widget.SidebarWidget;
 
-import java.util.HashMap;
-import java.util.Map;
-
-public final class FfScoreboard implements AutoCloseable {
-    private final FfActive game;
-
-    private final SidebarWidget sidebar;
-    private final Map<GameTeam, Team> scoreboardTeams = new HashMap<>();
-
-    private FfScoreboard(FfActive game, SidebarWidget sidebar) {
-        this.game = game;
-        this.sidebar = sidebar;
-    }
+public record FfScoreboard(FfActive game,
+                           SidebarWidget sidebar) {
 
     public static FfScoreboard create(FfActive game, GlobalWidgets widgets) {
         Text title = new LiteralText("Farmy Feud").formatted(Formatting.GOLD, Formatting.BOLD);
@@ -35,7 +17,7 @@ public final class FfScoreboard implements AutoCloseable {
     }
 
     public void tick() {
-        ServerWorld world = this.game.gameSpace.getWorld();
+        ServerWorld world = this.game.world;
         long time = world.getTime();
 
         if (time % 20 == 0) {
@@ -43,48 +25,28 @@ public final class FfScoreboard implements AutoCloseable {
         }
     }
 
-    public void addPlayer(ServerPlayerEntity player, GameTeam team) {
-        ServerWorld world = this.game.gameSpace.getWorld();
-        MinecraftServer server = world.getServer();
-
-        ServerScoreboard scoreboard = server.getScoreboard();
-        scoreboard.addPlayerToTeam(player.getEntityName(), this.scoreboardTeam(team));
-    }
-
-    public Team scoreboardTeam(GameTeam team) {
-        return this.scoreboardTeams.computeIfAbsent(team, t -> {
-            ServerWorld world = this.game.gameSpace.getWorld();
-            MinecraftServer server = world.getServer();
-            ServerScoreboard scoreboard = server.getScoreboard();
-            Team scoreboardTeam = scoreboard.addTeam(RandomStringUtils.randomAlphanumeric(16));
-            scoreboardTeam.setDisplayName(new LiteralText(t.getDisplay()));
-            scoreboardTeam.setColor(team.getFormatting());
-            scoreboardTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
-            scoreboardTeam.setFriendlyFireAllowed(false);
-            return scoreboardTeam;
-        });
-    }
-
     private void rerender(long time) {
         this.sidebar.set(content -> {
             long ticksRemaining = Math.max(this.game.endTime - time, 0);
             long sheepTicksRemaining = Math.max(this.game.nextSpawnTime - time, 0);
 
-            content.writeLine(Formatting.RED.toString() + Formatting.BOLD + "Time left: " + Formatting.RESET + this.renderTime(ticksRemaining));
-            content.writeLine("");
+            content.add(new LiteralText(Formatting.RED.toString() + Formatting.BOLD + "Time left: " + Formatting.RESET + this.renderTime(ticksRemaining)));
+            content.add(LiteralText.EMPTY);
 
-            content.writeLine(Formatting.BLUE + "Sheep in: " + Formatting.RESET + this.renderTime(sheepTicksRemaining));
-            content.writeLine("");
+            content.add(new LiteralText(Formatting.BLUE + "Sheep in: " + Formatting.RESET + this.renderTime(sheepTicksRemaining)));
+            content.add(LiteralText.EMPTY);
 
-            content.writeLine(Formatting.BOLD + "Teams:");
+            content.add(new LiteralText(Formatting.BOLD + "Teams:"));
             this.game.teams().forEach(teamState -> {
-                String nameFormat = teamState.team.getFormatting().toString() + Formatting.BOLD.toString();
-                String descriptionFormat = Formatting.RESET.toString() + Formatting.GRAY.toString();
+                var teamConfig = this.game.teamManager.getTeamConfig(teamState.team);
 
-                String name = teamState.team.getDisplay();
+                String nameFormat = teamConfig.chatFormatting().toString() + Formatting.BOLD;
+                String descriptionFormat = Formatting.RESET.toString() + Formatting.GRAY;
+
+                var name = teamConfig.name();
                 String description = teamState.getCapturedSheep() + " sheep";
 
-                content.writeLine("  " + nameFormat + name + ": " + descriptionFormat + description);
+                content.add(new LiteralText("  " + nameFormat ).append(name).append(": " + descriptionFormat + description));
             });
         });
     }
@@ -94,14 +56,5 @@ public final class FfScoreboard implements AutoCloseable {
         long minutes = ticks / (20 * 60);
 
         return String.format("%02d:%02d", minutes, seconds);
-    }
-
-    @Override
-    public void close() {
-        ServerWorld world = this.game.gameSpace.getWorld();
-        MinecraftServer server = world.getServer();
-
-        ServerScoreboard scoreboard = server.getScoreboard();
-        this.scoreboardTeams.values().forEach(scoreboard::removeTeam);
     }
 }

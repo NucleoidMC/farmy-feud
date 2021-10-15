@@ -1,6 +1,6 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import xyz.nucleoid.plasmid.game.player.GameTeam;
+import xyz.nucleoid.plasmid.game.common.team.GameTeamKey;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -8,12 +8,12 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 public final class FfTeamState {
-    public final GameTeam team;
+    public final GameTeamKey team;
     private final Set<UUID> participants = new HashSet<>();
 
     private int capturedSheep;
 
-    public FfTeamState(GameTeam team) {
+    public FfTeamState(GameTeamKey team) {
         this.team = team;
     }
 

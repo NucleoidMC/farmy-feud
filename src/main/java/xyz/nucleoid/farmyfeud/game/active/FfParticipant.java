@@ -4,20 +4,20 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.farmyfeud.entity.FarmSheepEntity;
-import xyz.nucleoid.plasmid.game.player.GameTeam;
+import xyz.nucleoid.plasmid.game.common.team.GameTeamKey;
 
 import java.util.UUID;
 
 public final class FfParticipant {
     private final ServerWorld world;
     public final UUID playerId;
-    public final GameTeam team;
+    public final GameTeamKey team;
 
     public final EntityCarryStack<FarmSheepEntity> carryStack = new EntityCarryStack<>(3);
 
     private long respawnTime = -1;
 
-    FfParticipant(ServerPlayerEntity player, GameTeam team) {
+    FfParticipant(ServerPlayerEntity player, GameTeamKey team) {
         this.world = player.getServerWorld();
         this.playerId = player.getUuid();
         this.team = team;

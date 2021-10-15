@@ -3,10 +3,10 @@ package xyz.nucleoid.farmyfeud.game.map;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import org.jetbrains.annotations.Nullable;
-import xyz.nucleoid.plasmid.game.player.GameTeam;
-import xyz.nucleoid.plasmid.map.template.MapTemplate;
-import xyz.nucleoid.plasmid.map.template.TemplateChunkGenerator;
-import xyz.nucleoid.plasmid.util.BlockBounds;
+import xyz.nucleoid.map_templates.BlockBounds;
+import xyz.nucleoid.map_templates.MapTemplate;
+import xyz.nucleoid.plasmid.game.common.team.GameTeamKey;
+import xyz.nucleoid.plasmid.game.world.generator.TemplateChunkGenerator;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,7 +17,7 @@ public final class FfMap {
     private final MapTemplate template;
 
     private BlockBounds centerSpawn;
-    private final Map<GameTeam, TeamRegions> teamRegions = new HashMap<>();
+    private final Map<GameTeamKey, TeamRegions> teamRegions = new HashMap<>();
 
     private final Collection<BlockBounds> illegalSheepRegions = new ArrayList<>();
 
@@ -29,7 +29,7 @@ public final class FfMap {
         this.centerSpawn = centerSpawn;
     }
 
-    public void addTeamRegions(GameTeam team, TeamRegions regions) {
+    public void addTeamRegions(GameTeamKey team, TeamRegions regions) {
         this.teamRegions.put(team, regions);
         this.addIllegalSheepRegion(regions.spawn);
     }
@@ -44,7 +44,7 @@ public final class FfMap {
     }
 
     @Nullable
-    public TeamRegions getTeamRegions(GameTeam team) {
+    public TeamRegions getTeamRegions(GameTeamKey team) {
         return this.teamRegions.get(team);
     }
 
@@ -56,13 +56,6 @@ public final class FfMap {
         return new TemplateChunkGenerator(server, this.template);
     }
 
-    public static class TeamRegions {
-        public final BlockBounds spawn;
-        public final BlockBounds pen;
-
-        public TeamRegions(BlockBounds spawn, BlockBounds pen) {
-            this.spawn = spawn;
-            this.pen = pen;
-        }
+    public record TeamRegions(BlockBounds spawn, BlockBounds pen) {
     }
 }

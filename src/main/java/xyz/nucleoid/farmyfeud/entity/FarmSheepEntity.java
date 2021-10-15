@@ -20,21 +20,21 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.farmyfeud.game.active.FfActive;
-import xyz.nucleoid.plasmid.game.player.GameTeam;
-import xyz.nucleoid.plasmid.util.BlockBounds;
+import xyz.nucleoid.map_templates.BlockBounds;
+import xyz.nucleoid.plasmid.game.common.team.GameTeamKey;
 
 import java.util.EnumSet;
 import java.util.Random;
 
 public final class FarmSheepEntity extends SheepEntity {
     private final FfActive game;
-    private GameTeam ownerTeam;
+    private GameTeamKey ownerTeam;
     private BlockBounds home;
 
     private Vec3d lastDropPos;
 
     private long lastPickUpTime;
-    private GameTeam lastPickUpTeam;
+    private GameTeamKey lastPickUpTeam;
 
     private long lastValidTime;
 
@@ -44,7 +44,7 @@ public final class FarmSheepEntity extends SheepEntity {
         this.lastValidTime = world.getTime();
     }
 
-    public void setOwnerTeam(@Nullable GameTeam team, BlockBounds home) {
+    public void setOwnerTeam(@Nullable GameTeamKey team, BlockBounds home) {
         this.ownerTeam = team;
         this.home = home;
         this.lastDropPos = null;
@@ -54,7 +54,7 @@ public final class FarmSheepEntity extends SheepEntity {
 
         if (team != null) {
             this.setCustomName(null);
-            this.setColor(team.getDye());
+            this.setColor(this.game.teamManager.getTeamConfig(team).blockDyeColor());
         } else {
             this.setCustomName(new LiteralText("jeb_"));
             this.setCustomNameVisible(false);
@@ -67,7 +67,7 @@ public final class FarmSheepEntity extends SheepEntity {
         this.lastPickUpTime = this.world.getTime();
     }
 
-    public boolean tryPickUp(long time, GameTeam team) {
+    public boolean tryPickUp(long time, GameTeamKey team) {
         if (time - this.lastPickUpTime >= FfActive.PICK_UP_INTERVAL_TICKS) {
             this.lastPickUpTime = time;
             this.lastPickUpTeam = team;
@@ -87,7 +87,7 @@ public final class FarmSheepEntity extends SheepEntity {
     }
 
     @Nullable
-    public GameTeam getLastPickUpTeam() {
+    public GameTeamKey getLastPickUpTeam() {
         return this.lastPickUpTeam;
     }
 
@@ -110,7 +110,7 @@ public final class FarmSheepEntity extends SheepEntity {
             }
 
             if (time - this.lastValidTime > 20 * 20) {
-                Vec3d center = this.home.getCenter();
+                Vec3d center = this.home.center();
                 this.teleport(center.getX(), center.getY() + 0.5, center.getZ());
             }
         }
@@ -132,7 +132,7 @@ public final class FarmSheepEntity extends SheepEntity {
     }
 
     @Nullable
-    public GameTeam getOwnerTeam() {
+    public GameTeamKey getOwnerTeam() {
         return this.ownerTeam;
     }
 
@@ -159,8 +159,8 @@ public final class FarmSheepEntity extends SheepEntity {
 
         private Vec3d getWanderTarget() {
             BlockBounds home = FarmSheepEntity.this.home;
-            BlockPos homeMin = home.getMin();
-            BlockPos homeMax = home.getMax();
+            BlockPos homeMin = home.min();
+            BlockPos homeMax = home.max();
 
             Random random = FarmSheepEntity.this.random;
 
