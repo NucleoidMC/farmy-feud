@@ -1,7 +1,7 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
+import net.minecraft.screen.ScreenTexts;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
@@ -11,7 +11,7 @@ public record FfScoreboard(FfActive game,
                            SidebarWidget sidebar) {
 
     public static FfScoreboard create(FfActive game, GlobalWidgets widgets) {
-        Text title = new LiteralText("Farmy Feud").formatted(Formatting.GOLD, Formatting.BOLD);
+        Text title = Text.literal("Farmy Feud").formatted(Formatting.GOLD, Formatting.BOLD);
         SidebarWidget sidebar = widgets.addSidebar(title);
         return new FfScoreboard(game, sidebar);
     }
@@ -30,13 +30,13 @@ public record FfScoreboard(FfActive game,
             long ticksRemaining = Math.max(this.game.endTime - time, 0);
             long sheepTicksRemaining = Math.max(this.game.nextSpawnTime - time, 0);
 
-            content.add(new LiteralText(Formatting.RED.toString() + Formatting.BOLD + "Time left: " + Formatting.RESET + this.renderTime(ticksRemaining)));
-            content.add(LiteralText.EMPTY);
+            content.add(Text.literal(Formatting.RED.toString() + Formatting.BOLD + "Time left: " + Formatting.RESET + this.renderTime(ticksRemaining)));
+            content.add(ScreenTexts.EMPTY);
 
-            content.add(new LiteralText(Formatting.BLUE + "Sheep in: " + Formatting.RESET + this.renderTime(sheepTicksRemaining)));
-            content.add(LiteralText.EMPTY);
+            content.add(Text.literal(Formatting.BLUE + "Sheep in: " + Formatting.RESET + this.renderTime(sheepTicksRemaining)));
+            content.add(ScreenTexts.EMPTY);
 
-            content.add(new LiteralText(Formatting.BOLD + "Teams:"));
+            content.add(Text.literal(Formatting.BOLD + "Teams:"));
             this.game.teams().forEach(teamState -> {
                 var teamConfig = this.game.teamManager.getTeamConfig(teamState.team);
 
@@ -46,7 +46,7 @@ public record FfScoreboard(FfActive game,
                 var name = teamConfig.name();
                 String description = teamState.getCapturedSheep() + " sheep";
 
-                content.add(new LiteralText("  " + nameFormat ).append(name).append(": " + descriptionFormat + description));
+                content.add(Text.literal("  " + nameFormat ).append(name).append(": " + descriptionFormat + description));
             });
         });
     }

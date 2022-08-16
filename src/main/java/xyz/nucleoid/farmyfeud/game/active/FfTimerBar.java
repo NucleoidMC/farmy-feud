@@ -1,7 +1,6 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
 import net.minecraft.entity.boss.BossBar;
-import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
 import xyz.nucleoid.plasmid.game.common.widget.BossBarWidget;
@@ -9,7 +8,7 @@ import xyz.nucleoid.plasmid.game.common.widget.BossBarWidget;
 public record FfTimerBar(BossBarWidget widget) {
 
     static FfTimerBar create(GlobalWidgets widgets) {
-        LiteralText title = new LiteralText("Game ends in...");
+        Text title = Text.literal("Game ends in...");
         return new FfTimerBar(widgets.addBossBar(title, BossBar.Color.RED, BossBar.Style.NOTCHED_10));
     }
 
@@ -27,6 +26,6 @@ public record FfTimerBar(BossBarWidget widget) {
         long seconds = secondsUntilEnd % 60;
         String time = String.format("%02d:%02d", minutes, seconds);
 
-        return new LiteralText("Game ends in: " + time + "...");
+        return Text.literal("Game ends in: " + time + "...");
     }
 }

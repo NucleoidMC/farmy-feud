@@ -9,13 +9,14 @@ import net.minecraft.entity.ai.goal.SwimGoal;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.DyeColor;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -24,7 +25,6 @@ import xyz.nucleoid.map_templates.BlockBounds;
 import xyz.nucleoid.plasmid.game.common.team.GameTeamKey;
 
 import java.util.EnumSet;
-import java.util.Random;
 
 public final class FarmSheepEntity extends SheepEntity {
     private final FfActive game;
@@ -56,7 +56,7 @@ public final class FarmSheepEntity extends SheepEntity {
             this.setCustomName(null);
             this.setColor(this.game.teamManager.getTeamConfig(team).blockDyeColor());
         } else {
-            this.setCustomName(new LiteralText("jeb_"));
+            this.setCustomName(Text.literal("jeb_"));
             this.setCustomNameVisible(false);
             this.setColor(DyeColor.WHITE);
         }

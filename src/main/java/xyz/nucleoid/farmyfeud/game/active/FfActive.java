@@ -11,7 +11,6 @@ import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.LiteralText;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
@@ -72,7 +71,7 @@ public final class FfActive {
             .setUnbreakable();
 
     private static final ItemStackBuilder SADDLE = ItemStackBuilder.of(Items.SADDLE)
-            .addLore(new LiteralText("Right-click on a sheep to pick it up!"));
+            .addLore(Text.literal("Right-click on a sheep to pick it up!"));
 
     public final ServerWorld world;
     public final GameSpace gameSpace;
@@ -322,7 +321,7 @@ public final class FfActive {
             FfParticipant participant = this.getParticipant(player);
             if (participant != null) {
                 EntityHitResult traceResult = EntityRayTrace.rayTrace(player, 5.0, 0.5, entity -> {
-                    return entity instanceof FarmSheepEntity && !entity.hasVehicle() && entity.collides();
+                    return entity instanceof FarmSheepEntity && !entity.hasVehicle() && entity.canHit();
                 });
 
                 if (traceResult != null) {
@@ -430,12 +429,12 @@ public final class FfActive {
 
         Entity attackerEntity = source.getAttacker();
         if (attackerEntity instanceof ServerPlayerEntity) {
-            message = player.getDisplayName().shallowCopy()
-                    .append(new LiteralText(" was killed by ").formatted(Formatting.GRAY))
+            message = player.getDisplayName().copy()
+                    .append(Text.literal(" was killed by ").formatted(Formatting.GRAY))
                     .append(attackerEntity.getDisplayName());
         } else {
-            message = player.getDisplayName().shallowCopy()
-                    .append(new LiteralText(" died").formatted(Formatting.GRAY));
+            message = player.getDisplayName().copy()
+                    .append(Text.literal(" died").formatted(Formatting.GRAY));
         }
 
         this.gameSpace.getPlayers().sendMessage(message);
@@ -473,7 +472,7 @@ public final class FfActive {
             participant.startRespawn(this.world.getTime());
             this.spawnLogic.resetPlayer(player, GameMode.SPECTATOR);
 
-            player.sendMessage(new LiteralText("You will respawn in " + RESPAWN_SECONDS + " seconds..").formatted(Formatting.BOLD), false);
+            player.sendMessage(Text.literal("You will respawn in " + RESPAWN_SECONDS + " seconds..").formatted(Formatting.BOLD), false);
         }
     }
 
@@ -492,7 +491,7 @@ public final class FfActive {
 
         player.getInventory().insertStack(8,
                 ItemStackBuilder.of(ColoredBlocks.wool(teamConfig.blockDyeColor()))
-                        .setName(teamConfig.name().shallowCopy().append(" Team")
+                        .setName(teamConfig.name().copy().append(" Team")
                                 .formatted(teamConfig.chatFormatting())
                         )
                         .build()
@@ -512,10 +511,10 @@ public final class FfActive {
         if (winningTeam != null) {
             var teamConfig = this.teamManager.getTeamConfig(winningTeam);
 
-            message = teamConfig.name().shallowCopy().append(" won the game!")
+            message = teamConfig.name().copy().append(" won the game!")
                     .formatted(Formatting.BOLD, teamConfig.chatFormatting());
         } else {
-            message = new LiteralText("The game ended in a draw!")
+            message = Text.literal("The game ended in a draw!")
                     .formatted(Formatting.BOLD, Formatting.GRAY);
         }
 
