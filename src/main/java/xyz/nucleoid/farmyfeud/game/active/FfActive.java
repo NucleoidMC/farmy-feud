@@ -3,6 +3,7 @@ package xyz.nucleoid.farmyfeud.game.active;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.entity.player.ItemCooldownManager;
 import net.minecraft.item.AxeItem;
 import net.minecraft.item.ItemStack;
@@ -458,7 +459,7 @@ public final class FfActive {
             participant.carryStack.dropAll(player);
         }
 
-        if (!player.isSpectator() && source == DamageSource.LAVA) {
+        if (!player.isSpectator() && source.isOf(DamageTypes.LAVA)) {
             this.respawnPlayer(player);
             return ActionResult.FAIL;
         }

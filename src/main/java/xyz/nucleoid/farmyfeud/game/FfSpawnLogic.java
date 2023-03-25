@@ -25,7 +25,7 @@ public record FfSpawnLogic(ServerWorld world, FfMap map) {
     public void spawnPlayerAtCenter(ServerPlayerEntity player) {
         BlockBounds centerSpawn = this.map.getCenterSpawn();
         if (centerSpawn != null) {
-            this.spawnAt(player, new BlockPos(centerSpawn.center()));
+            this.spawnAt(player, BlockPos.ofFloored(centerSpawn.center()));
         } else {
             this.spawnAt(player, BlockPos.ORIGIN);
         }
@@ -39,7 +39,7 @@ public record FfSpawnLogic(ServerWorld world, FfMap map) {
 
         BlockBounds teamSpawn = teamRegions.spawn();
         if (teamSpawn != null) {
-            BlockPos spawnPos = new BlockPos(teamSpawn.center());
+            BlockPos spawnPos = BlockPos.ofFloored(teamSpawn.center());
             this.spawnAt(player, spawnPos);
         }
     }
