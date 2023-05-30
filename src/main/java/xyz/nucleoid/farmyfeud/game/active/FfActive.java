@@ -130,6 +130,7 @@ public final class FfActive {
             game.setRule(GameRuleType.FALL_DAMAGE, ActionResult.SUCCESS);
             game.setRule(GameRuleType.BLOCK_DROPS, ActionResult.FAIL);
             game.setRule(GameRuleType.HUNGER, ActionResult.FAIL);
+            game.setRule(GameRuleType.SATURATED_REGENERATION, ActionResult.FAIL);
             game.setRule(GameRuleType.THROW_ITEMS, ActionResult.FAIL);
 
             TeamChat.addTo(game, teamManager);
