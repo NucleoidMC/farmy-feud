@@ -13,7 +13,7 @@ import java.util.function.Predicate;
 public final class EntityRayTrace {
     @Nullable
     public static EntityHitResult rayTrace(Entity sourceEntity, double range, double margin, Predicate<Entity> predicate) {
-        World world = sourceEntity.world;
+        World world = sourceEntity.getWorld();
 
         Vec3d origin = sourceEntity.getCameraPosVec(1.0F);
         Vec3d delta = sourceEntity.getRotationVec(1.0F).multiply(range);

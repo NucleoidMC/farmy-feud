@@ -53,7 +53,7 @@ record FfCaptureLogic(FfActive game) {
     }
 
     private void spawnFireworkAt(Entity entity, GameTeamKey team) {
-        World world = entity.world;
+        World world = entity.getWorld();
 
         int flight = world.random.nextInt(3);
 
@@ -66,7 +66,7 @@ record FfCaptureLogic(FfActive game) {
                 ItemStackBuilder.firework(this.game.teamManager.getTeamConfig(team).dyeColor().getRgb(), flight, type).build()
         );
 
-        entity.world.spawnEntity(firework);
+        world.spawnEntity(firework);
     }
 
     private boolean isCapturedBy(Vec3d pos, GameTeamKey team) {

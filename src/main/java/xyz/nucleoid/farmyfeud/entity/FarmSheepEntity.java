@@ -48,7 +48,7 @@ public final class FarmSheepEntity extends SheepEntity {
         this.ownerTeam = team;
         this.home = home;
         this.lastDropPos = null;
-        this.lastValidTime = this.world.getTime();
+        this.lastValidTime = this.getWorld().getTime();
 
         this.getNavigation().stop();
 
@@ -64,7 +64,7 @@ public final class FarmSheepEntity extends SheepEntity {
 
     public void drop() {
         this.lastDropPos = this.getPos();
-        this.lastPickUpTime = this.world.getTime();
+        this.lastPickUpTime = this.getWorld().getTime();
     }
 
     public boolean tryPickUp(long time, GameTeamKey team) {
@@ -104,7 +104,7 @@ public final class FarmSheepEntity extends SheepEntity {
         this.game.tickSheep(this);
 
         if (this.home != null) {
-            long time = this.world.getTime();
+            long time = this.getWorld().getTime();
             if (this.hasVehicle() || this.home.contains(this.getBlockPos())) {
                 this.lastValidTime = time;
             }
@@ -182,7 +182,7 @@ public final class FarmSheepEntity extends SheepEntity {
                 targetZ = MathHelper.floor(z + deltaZ);
             }
 
-            int topY = FarmSheepEntity.this.world.getTopY(Heightmap.Type.MOTION_BLOCKING, targetX, targetZ);
+            int topY = FarmSheepEntity.this.getWorld().getTopY(Heightmap.Type.MOTION_BLOCKING, targetX, targetZ);
             return new Vec3d(targetX + 0.5, topY, targetZ + 0.5);
         }
 
