@@ -384,7 +384,7 @@ public final class FfActive {
                 }
 
                 sheep.detach();
-                sheep.teleport(respawnPos.x, respawnPos.y, respawnPos.z);
+                sheep.teleportWithPoof(respawnPos.x, respawnPos.y, respawnPos.z);
                 sheep.setFireTicks(0);
             }
         }

@@ -9,6 +9,8 @@ import net.minecraft.entity.ai.goal.SwimGoal;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.particle.DustParticleEffect;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.DyeColor;
@@ -20,6 +22,7 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 import xyz.nucleoid.farmyfeud.game.active.FfActive;
 import xyz.nucleoid.map_templates.BlockBounds;
 import xyz.nucleoid.plasmid.game.common.team.GameTeamKey;
@@ -76,6 +79,23 @@ public final class FarmSheepEntity extends SheepEntity {
         return false;
     }
 
+    public void teleportWithPoof(double x, double y, double z) {
+        if (this.getWorld() instanceof ServerWorld world) {
+            var colorComponents = this.getColor().getColorComponents();
+            var particle = new DustParticleEffect(new Vector3f(colorComponents), 2f);
+
+            for (int i = 0; i < 20; i++) {
+                double deltaX = this.random.nextGaussian() * 0.02;
+                double deltaY = this.random.nextGaussian() * 0.02;
+                double deltaZ = this.random.nextGaussian() * 0.02;
+
+                world.spawnParticles(particle, this.getParticleX(1), this.getRandomBodyY(), this.getParticleZ(1), 1, deltaX, deltaY, deltaZ, 0.1);
+            }
+        }
+
+        this.teleport(x, y, z);
+    }
+
     @Nullable
     public BlockBounds getHome() {
         return this.home;
@@ -111,7 +131,7 @@ public final class FarmSheepEntity extends SheepEntity {
 
             if (time - this.lastValidTime > 20 * 20) {
                 Vec3d center = this.home.center();
-                this.teleport(center.getX(), center.getY() + 0.5, center.getZ());
+                this.teleportWithPoof(center.getX(), center.getY() + 0.5, center.getZ());
             }
         }
     }
