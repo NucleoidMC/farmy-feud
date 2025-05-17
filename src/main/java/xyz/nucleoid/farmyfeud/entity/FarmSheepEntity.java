@@ -29,7 +29,7 @@ import xyz.nucleoid.plasmid.api.game.common.team.GameTeamKey;
 
 import java.util.EnumSet;
 
-public final class FarmSheepEntity extends SheepEntity {
+public class FarmSheepEntity extends SheepEntity implements Carriable {
     private final FfActive game;
     private GameTeamKey ownerTeam;
     private BlockBounds home;
@@ -109,6 +109,11 @@ public final class FarmSheepEntity extends SheepEntity {
     @Nullable
     public GameTeamKey getLastPickUpTeam() {
         return this.lastPickUpTeam;
+    }
+
+    @Override
+    public int getCarryWeight() {
+        return 1;
     }
 
     @Override

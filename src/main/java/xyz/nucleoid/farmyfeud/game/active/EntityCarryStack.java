@@ -8,24 +8,27 @@ import net.minecraft.network.packet.s2c.play.EntityPassengersSetS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import xyz.nucleoid.farmyfeud.FarmyFeud;
+import xyz.nucleoid.farmyfeud.entity.Carriable;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-public final class EntityCarryStack<T extends Entity> {
+public final class EntityCarryStack<T extends Entity & Carriable> {
     private static final Identifier SLOW_MODIFIER_ID = Identifier.of(FarmyFeud.ID, "stack_slowness");
 
-    private final int maximumHeight;
-    private final List<T> stack = new ArrayList<>();
+    private final int maximumWeight;
 
-    public EntityCarryStack(int maximumHeight) {
-        this.maximumHeight = maximumHeight;
+    private final List<T> stack = new ArrayList<>();
+    private int weight;
+
+    public EntityCarryStack(int maximumWeight) {
+        this.maximumWeight = maximumWeight;
     }
 
     public boolean tryAdd(ServerPlayerEntity player, T entity) {
-        if (this.stack.size() >= this.maximumHeight) {
+        if (this.weight + entity.getCarryWeight() > this.maximumWeight) {
             return false;
         }
 
@@ -73,9 +76,15 @@ public final class EntityCarryStack<T extends Entity> {
 
         attribute.removeModifier(SLOW_MODIFIER_ID);
 
-        if (!this.stack.isEmpty()) {
+        this.weight = 0;
+
+        for (T entity : this.stack) {
+            this.weight += entity.getCarryWeight();
+        }
+
+        if (this.weight > 0) {
             double baseValue = attribute.getBaseValue();
-            double targetValue = baseValue / (this.stack.size() * 0.3 + 1);
+            double targetValue = baseValue / (this.getWeight() * 0.3 + 1);
 
             EntityAttributeModifier modifier = new EntityAttributeModifier(
                     SLOW_MODIFIER_ID,
@@ -86,8 +95,8 @@ public final class EntityCarryStack<T extends Entity> {
         }
     }
 
-    public int getHeight() {
-        return this.stack.size();
+    public int getWeight() {
+        return this.weight;
     }
 
     public boolean isEmpty() {

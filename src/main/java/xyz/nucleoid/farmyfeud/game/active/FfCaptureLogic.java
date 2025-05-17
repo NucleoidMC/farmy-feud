@@ -35,11 +35,11 @@ record FfCaptureLogic(FfActive game) {
 
         if (sheep.getOwnerTeam() != null) {
             FfTeamState lastTeam = this.game.getTeam(sheep.getOwnerTeam());
-            lastTeam.decrementCapturedSheep();
+            lastTeam.decrementCapturedSheep(sheep);
         }
 
         FfTeamState newTeam = this.game.getTeam(team);
-        newTeam.incrementCapturedSheep();
+        newTeam.incrementCapturedSheep(sheep);
 
         FfMap.TeamRegions regions = this.game.map.getTeamRegions(team);
 

@@ -24,6 +24,7 @@ import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.farmyfeud.FarmyFeud;
 import xyz.nucleoid.farmyfeud.entity.FarmSheepEntity;
+import xyz.nucleoid.farmyfeud.entity.MegaFarmSheepEntity;
 import xyz.nucleoid.farmyfeud.game.FfConfig;
 import xyz.nucleoid.farmyfeud.game.FfSpawnLogic;
 import xyz.nucleoid.farmyfeud.game.map.FfMap;
@@ -164,7 +165,7 @@ public final class FfActive {
 
         int sheepCount = (this.config.teams().list().size() * 3) / 2;
         for (int i = 0; i < sheepCount; i++) {
-            this.spawnSheep();
+            this.spawnSheep(true);
         }
     }
 
@@ -279,7 +280,7 @@ public final class FfActive {
 
     private void tickSheepSpawning(long time) {
         if (time >= this.nextSpawnTime) {
-            this.spawnSheep();
+            this.spawnSheep(false);
             this.initNextSpawnTime(time);
         }
     }
@@ -292,13 +293,21 @@ public final class FfActive {
         this.nextArrowTime = currentTime + this.config.arrowInterval();
     }
 
-    private void spawnSheep() {
+    private FarmSheepEntity createSheep(boolean initial) {
+        if (!initial && this.world.getRandom().nextFloat() < this.config.megaSheepSpawnChance()) {
+            return new MegaFarmSheepEntity(this.world, this);
+        }
+
+        return new FarmSheepEntity(this.world, this);
+    }
+
+    private void spawnSheep(boolean initial) {
         BlockBounds centerSpawn = this.map.getCenterSpawn();
         if (centerSpawn == null) {
             return;
         }
 
-        FarmSheepEntity entity = new FarmSheepEntity(this.world, this);
+        FarmSheepEntity entity = this.createSheep(initial);
 
         Vec3d spawnPos = centerSpawn.center();
         entity.refreshPositionAndAngles(spawnPos.x, spawnPos.y + 0.5, spawnPos.z, 0.0F, 0.0F);

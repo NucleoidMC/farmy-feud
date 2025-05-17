@@ -1,5 +1,6 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
+import xyz.nucleoid.farmyfeud.entity.Carriable;
 import xyz.nucleoid.plasmid.api.game.common.team.GameTeamKey;
 
 import java.util.HashSet;
@@ -29,12 +30,12 @@ public final class FfTeamState {
         return this.participants.stream();
     }
 
-    public void incrementCapturedSheep() {
-        this.capturedSheep++;
+    public void incrementCapturedSheep(Carriable sheep) {
+        this.capturedSheep += sheep.getCarryWeight();
     }
 
-    public void decrementCapturedSheep() {
-        this.capturedSheep--;
+    public void decrementCapturedSheep(Carriable sheep) {
+        this.capturedSheep -= sheep.getCarryWeight();
     }
 
     public int getCapturedSheep() {
