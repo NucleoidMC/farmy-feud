@@ -1,12 +1,11 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import net.minecraft.component.type.FireworkExplosionComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.projectile.FireworkRocketEntity;
-import net.minecraft.item.FireworkRocketItem;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
+import net.minecraft.world.item.component.FireworkExplosion;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.farmyfeud.entity.FarmSheepEntity;
 import xyz.nucleoid.farmyfeud.game.map.FfMap;
@@ -18,7 +17,7 @@ import xyz.nucleoid.plasmid.api.util.ItemStackBuilder;
 record FfCaptureLogic(FfActive game) {
 
     @Nullable
-    public GameTeamKey getTeamAt(Vec3d pos) {
+    public GameTeamKey getTeamAt(Vec3 pos) {
         for (GameTeam team : this.game.config.teams()) {
             if (this.isCapturedBy(pos, team.key())) {
                 return team.key();
@@ -45,7 +44,7 @@ record FfCaptureLogic(FfActive game) {
 
         BlockBounds teamPen = regions != null ? regions.pen() : null;
         if (teamPen == null) {
-            teamPen = BlockBounds.of(sheep.getBlockPos(), sheep.getBlockPos());
+            teamPen = BlockBounds.of(sheep.blockPosition(), sheep.blockPosition());
         }
 
         sheep.setOwnerTeam(team, teamPen);
@@ -54,23 +53,23 @@ record FfCaptureLogic(FfActive game) {
     }
 
     private void spawnFireworkAt(Entity entity, GameTeamKey team) {
-        World world = entity.getWorld();
+        Level world = entity.level();
 
-        int flight = world.random.nextInt(3);
+        int flight = world.getRandom().nextInt(3);
 
-        var type = world.random.nextInt(4) == 0 ? FireworkExplosionComponent.Type.STAR : FireworkExplosionComponent.Type.BURST;
+        var type = world.getRandom().nextInt(4) == 0 ? FireworkExplosion.Shape.STAR : FireworkExplosion.Shape.BURST;
         FireworkRocketEntity firework = new FireworkRocketEntity(
                 world,
                 entity.getX(),
                 entity.getEyeY(),
                 entity.getZ(),
-                ItemStackBuilder.firework(this.game.teamManager.getTeamConfig(team).dyeColor().getRgb(), flight, type).build()
+                ItemStackBuilder.firework(this.game.teamManager.getTeamConfig(team).dyeColor().getValue(), flight, type).build()
         );
 
-        world.spawnEntity(firework);
+        world.addFreshEntity(firework);
     }
 
-    private boolean isCapturedBy(Vec3d pos, GameTeamKey team) {
+    private boolean isCapturedBy(Vec3 pos, GameTeamKey team) {
         FfMap.TeamRegions regions = this.game.map.getTeamRegions(team);
         if (regions == null || regions.pen() == null) {
             return false;

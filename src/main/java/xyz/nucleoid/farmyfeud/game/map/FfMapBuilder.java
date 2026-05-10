@@ -1,7 +1,7 @@
 package xyz.nucleoid.farmyfeud.game.map;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.biome.BiomeKeys;
+import net.minecraft.world.level.biome.Biomes;
 import xyz.nucleoid.farmyfeud.FarmyFeud;
 import xyz.nucleoid.farmyfeud.game.FfConfig;
 import xyz.nucleoid.map_templates.BlockBounds;
@@ -27,7 +27,7 @@ public record FfMapBuilder(FfConfig config) {
         this.addGlobalRegions(map, metadata);
         this.addTeamRegions(map, metadata);
 
-        template.setBiome(BiomeKeys.PLAINS);
+        template.setBiome(Biomes.PLAINS);
 
         return map;
     }

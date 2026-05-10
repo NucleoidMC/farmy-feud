@@ -1,15 +1,15 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import net.minecraft.entity.boss.BossBar;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.BossEvent;
 import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
 import xyz.nucleoid.plasmid.api.game.common.widget.BossBarWidget;
 
 public record FfTimerBar(BossBarWidget widget) {
 
     static FfTimerBar create(GlobalWidgets widgets) {
-        Text title = Text.literal("Game ends in...");
-        return new FfTimerBar(widgets.addBossBar(title, BossBar.Color.RED, BossBar.Style.NOTCHED_10));
+        Component title = Component.literal("Game ends in...");
+        return new FfTimerBar(widgets.addBossBar(title, BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10));
     }
 
     public void update(long timeLeft, long totalTime) {
@@ -19,13 +19,13 @@ public record FfTimerBar(BossBarWidget widget) {
         }
     }
 
-    private Text getText(long tickUntilEnd) {
+    private Component getText(long tickUntilEnd) {
         long secondsUntilEnd = tickUntilEnd / 20;
 
         long minutes = secondsUntilEnd / 60;
         long seconds = secondsUntilEnd % 60;
         String time = String.format("%02d:%02d", minutes, seconds);
 
-        return Text.literal("Game ends in: " + time + "...");
+        return Component.literal("Game ends in: " + time + "...");
     }
 }

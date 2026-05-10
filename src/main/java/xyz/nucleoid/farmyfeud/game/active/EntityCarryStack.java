@@ -1,21 +1,21 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.attribute.EntityAttributeInstance;
-import net.minecraft.entity.attribute.EntityAttributeModifier;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.network.packet.s2c.play.EntityPassengersSetS2CPacket;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
 import xyz.nucleoid.farmyfeud.FarmyFeud;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
 public final class EntityCarryStack<T extends Entity> {
-    private static final Identifier SLOW_MODIFIER_ID = Identifier.of(FarmyFeud.ID, "stack_slowness");
+    private static final Identifier SLOW_MODIFIER_ID = Identifier.fromNamespaceAndPath(FarmyFeud.ID, "stack_slowness");
 
     private final int maximumHeight;
     private final List<T> stack = new ArrayList<>();
@@ -24,7 +24,7 @@ public final class EntityCarryStack<T extends Entity> {
         this.maximumHeight = maximumHeight;
     }
 
-    public boolean tryAdd(ServerPlayerEntity player, T entity) {
+    public boolean tryAdd(ServerPlayer player, T entity) {
         if (this.stack.size() >= this.maximumHeight) {
             return false;
         }
@@ -38,7 +38,7 @@ public final class EntityCarryStack<T extends Entity> {
             tail = this.stack.get(this.stack.size() - 1);
         }
 
-        entity.startRiding(tail, true);
+        entity.startRiding(tail, true, true);
         this.stack.add(entity);
 
         this.onStackChange(player);
@@ -46,7 +46,7 @@ public final class EntityCarryStack<T extends Entity> {
         return true;
     }
 
-    public List<T> dropAll(ServerPlayerEntity player) {
+    public List<T> dropAll(ServerPlayer player) {
         if (this.stack.isEmpty()) {
             return Collections.emptyList();
         }
@@ -63,10 +63,10 @@ public final class EntityCarryStack<T extends Entity> {
         return stack;
     }
 
-    private void onStackChange(ServerPlayerEntity player) {
-        player.networkHandler.sendPacket(new EntityPassengersSetS2CPacket(player));
+    private void onStackChange(ServerPlayer player) {
+        player.connection.send(new ClientboundSetPassengersPacket(player));
 
-        EntityAttributeInstance attribute = player.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+        AttributeInstance attribute = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (attribute == null) {
             return;
         }
@@ -77,12 +77,12 @@ public final class EntityCarryStack<T extends Entity> {
             double baseValue = attribute.getBaseValue();
             double targetValue = baseValue / (this.stack.size() * 0.3 + 1);
 
-            EntityAttributeModifier modifier = new EntityAttributeModifier(
+            AttributeModifier modifier = new AttributeModifier(
                     SLOW_MODIFIER_ID,
-                    targetValue - baseValue, EntityAttributeModifier.Operation.ADD_VALUE
+                    targetValue - baseValue, AttributeModifier.Operation.ADD_VALUE
             );
 
-            attribute.addTemporaryModifier(modifier);
+            attribute.addTransientModifier(modifier);
         }
     }
 

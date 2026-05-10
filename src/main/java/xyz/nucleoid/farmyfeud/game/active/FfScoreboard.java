@@ -1,9 +1,9 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import net.minecraft.screen.ScreenTexts;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
 import xyz.nucleoid.plasmid.api.game.common.widget.SidebarWidget;
 
@@ -11,14 +11,14 @@ public record FfScoreboard(FfActive game,
                            SidebarWidget sidebar) {
 
     public static FfScoreboard create(FfActive game, GlobalWidgets widgets) {
-        Text title = Text.literal("Farmy Feud").formatted(Formatting.GOLD, Formatting.BOLD);
+        Component title = Component.literal("Farmy Feud").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
         SidebarWidget sidebar = widgets.addSidebar(title);
         return new FfScoreboard(game, sidebar);
     }
 
     public void tick() {
-        ServerWorld world = this.game.world;
-        long time = world.getTime();
+        ServerLevel world = this.game.world;
+        long time = world.getGameTime();
 
         if (time % 20 == 0) {
             this.rerender(time);
@@ -30,23 +30,23 @@ public record FfScoreboard(FfActive game,
             long ticksRemaining = Math.max(this.game.endTime - time, 0);
             long sheepTicksRemaining = Math.max(this.game.nextSpawnTime - time, 0);
 
-            content.add(Text.literal(Formatting.RED.toString() + Formatting.BOLD + "Time left: " + Formatting.RESET + this.renderTime(ticksRemaining)));
-            content.add(ScreenTexts.EMPTY);
+            content.add(Component.literal(ChatFormatting.RED.toString() + ChatFormatting.BOLD + "Time left: " + ChatFormatting.RESET + this.renderTime(ticksRemaining)));
+            content.add(CommonComponents.EMPTY);
 
-            content.add(Text.literal(Formatting.BLUE + "Sheep in: " + Formatting.RESET + this.renderTime(sheepTicksRemaining)));
-            content.add(ScreenTexts.EMPTY);
+            content.add(Component.literal(ChatFormatting.BLUE + "Sheep in: " + ChatFormatting.RESET + this.renderTime(sheepTicksRemaining)));
+            content.add(CommonComponents.EMPTY);
 
-            content.add(Text.literal(Formatting.BOLD + "Teams:"));
+            content.add(Component.literal(ChatFormatting.BOLD + "Teams:"));
             this.game.teams().forEach(teamState -> {
                 var teamConfig = this.game.teamManager.getTeamConfig(teamState.team);
 
-                String nameFormat = teamConfig.chatFormatting().toString() + Formatting.BOLD;
-                String descriptionFormat = Formatting.RESET.toString() + Formatting.GRAY;
+                String nameFormat = teamConfig.chatFormatting().toString() + ChatFormatting.BOLD;
+                String descriptionFormat = ChatFormatting.RESET.toString() + ChatFormatting.GRAY;
 
                 var name = teamConfig.name();
                 String description = teamState.getCapturedSheep() + " sheep";
 
-                content.add(Text.literal("  " + nameFormat ).append(name).append(": " + descriptionFormat + description));
+                content.add(Component.literal("  " + nameFormat ).append(name).append(": " + descriptionFormat + description));
             });
         });
     }

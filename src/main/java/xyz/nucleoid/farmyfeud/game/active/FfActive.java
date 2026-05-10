@@ -1,26 +1,5 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.damage.DamageTypes;
-import net.minecraft.entity.player.ItemCooldownManager;
-import net.minecraft.item.AxeItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.farmyfeud.FarmyFeud;
 import xyz.nucleoid.farmyfeud.entity.FarmSheepEntity;
@@ -54,6 +33,27 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Stream;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.ItemCooldowns;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 
 public final class FfActive {
     public static final int RESPAWN_SECONDS = 5;
@@ -73,9 +73,9 @@ public final class FfActive {
             .setUnbreakable();
 
     private static final ItemStackBuilder SADDLE = ItemStackBuilder.of(Items.SADDLE)
-            .addLore(Text.literal("Right-click on a sheep to pick it up!"));
+            .addLore(Component.literal("Right-click on a sheep to pick it up!"));
 
-    public final ServerWorld world;
+    public final ServerLevel world;
     public final GameSpace gameSpace;
     public final FfConfig config;
 
@@ -97,7 +97,7 @@ public final class FfActive {
 
     private long closeTime = -1;
 
-    private FfActive(GameSpace gameSpace, ServerWorld world, FfMap map, FfConfig config, TeamManager manager, GlobalWidgets widgets) {
+    private FfActive(GameSpace gameSpace, ServerLevel world, FfMap map, FfConfig config, TeamManager manager, GlobalWidgets widgets) {
         this.world = world;
         this.gameSpace = gameSpace;
         this.map = map;
@@ -117,7 +117,7 @@ public final class FfActive {
         }
     }
 
-    public static void open(GameSpace gameSpace, ServerWorld world, FfMap map, FfConfig config, TeamSelectionLobby teamSelection) {
+    public static void open(GameSpace gameSpace, ServerLevel world, FfMap map, FfConfig config, TeamSelectionLobby teamSelection) {
         gameSpace.setActivity(game -> {
             GlobalWidgets widgets = GlobalWidgets.addTo(game);
 
@@ -142,7 +142,7 @@ public final class FfActive {
             game.listen(GameActivityEvents.STATE_UPDATE, state -> state.canPlay(false));
 
             game.listen(GamePlayerEvents.OFFER, JoinOffer::acceptSpectators);
-            game.listen(GamePlayerEvents.ACCEPT, player -> player.teleport(world, map.getCenterSpawn() != null ? map.getCenterSpawn().center() : new Vec3d(0, 256, 0)));
+            game.listen(GamePlayerEvents.ACCEPT, player -> player.teleport(world, map.getCenterSpawn() != null ? map.getCenterSpawn().center() : new Vec3(0, 256, 0)));
             game.listen(GamePlayerEvents.ADD, active::addPlayer);
 
             game.listen(GameActivityEvents.TICK, active::tick);
@@ -156,7 +156,7 @@ public final class FfActive {
     }
 
     private void open() {
-        long time = this.world.getTime();
+        long time = this.world.getGameTime();
 
         this.endTime = time + this.config.gameDuration();
         this.initNextSpawnTime(time);
@@ -170,25 +170,25 @@ public final class FfActive {
 
     private void close() {
         for (FfParticipant participant : this.participants.values()) {
-            ServerPlayerEntity player = participant.player();
+            ServerPlayer player = participant.player();
             if (player != null) {
                 participant.carryStack.dropAll(player);
             }
         }
     }
 
-    private void addPlayer(ServerPlayerEntity player) {
+    private void addPlayer(ServerPlayer player) {
         if (this.gameSpace.getPlayers().participants().contains(player)) {
             FfParticipant participant = this.getOrCreateParticipant(player);
             this.spawnParticipant(player, participant);
         } else {
             this.spawnLogic.spawnPlayerAtCenter(player);
-            this.spawnLogic.resetPlayer(player, GameMode.SPECTATOR);
+            this.spawnLogic.resetPlayer(player, GameType.SPECTATOR);
         }
     }
 
     private void tick() {
-        long time = this.world.getTime();
+        long time = this.world.getGameTime();
 
         if (this.closeTime != -1) {
             if (time >= this.closeTime) {
@@ -216,7 +216,7 @@ public final class FfActive {
         this.tickSheepSpawning(time);
 
         for (FfParticipant participant : this.participants.values()) {
-            ServerPlayerEntity player = participant.player();
+            ServerPlayer player = participant.player();
             if (player == null) {
                 continue;
             }
@@ -229,7 +229,7 @@ public final class FfActive {
         return WinResult.no();
     }
 
-    private void tickParticipant(long time, ServerPlayerEntity player, FfParticipant participant) {
+    private void tickParticipant(long time, ServerPlayer player, FfParticipant participant) {
         if (participant.tryRespawn(time)) {
             this.spawnParticipant(player, participant);
         }
@@ -268,8 +268,8 @@ public final class FfActive {
     private void tickArrows(long time) {
         if (time >= this.nextArrowTime) {
             this.players().forEach(player -> {
-                if (player.getInventory().count(Items.ARROW) < this.config.maxArrows()) {
-                    player.getInventory().offerOrDrop(new ItemStack(Items.ARROW));
+                if (player.getInventory().countItem(Items.ARROW) < this.config.maxArrows()) {
+                    player.getInventory().placeItemBackInInventory(new ItemStack(Items.ARROW));
                 }
             });
 
@@ -300,19 +300,19 @@ public final class FfActive {
 
         FarmSheepEntity entity = new FarmSheepEntity(this.world, this);
 
-        Vec3d spawnPos = centerSpawn.center();
-        entity.refreshPositionAndAngles(spawnPos.x, spawnPos.y + 0.5, spawnPos.z, 0.0F, 0.0F);
+        Vec3 spawnPos = centerSpawn.center();
+        entity.snapTo(spawnPos.x, spawnPos.y + 0.5, spawnPos.z, 0.0F, 0.0F);
 
         entity.setOwnerTeam(null, centerSpawn);
         entity.setInvulnerable(true);
 
-        if (!this.world.spawnEntity(entity)) {
+        if (!this.world.addFreshEntity(entity)) {
             FarmyFeud.LOGGER.warn("Chunk not loaded to spawn sheep entity!");
         }
     }
 
-    private void onSwingHand(ServerPlayerEntity player, Hand hand) {
-        ItemStack heldStack = player.getStackInHand(hand);
+    private void onSwingHand(ServerPlayer player, InteractionHand hand) {
+        ItemStack heldStack = player.getItemInHand(hand);
 
         if (heldStack.getItem() == Items.SADDLE) {
             FfParticipant participant = this.getParticipant(player);
@@ -320,51 +320,51 @@ public final class FfActive {
                 List<FarmSheepEntity> entities = participant.carryStack.dropAll(player);
                 this.throwEntities(player, entities, 1.0);
 
-                player.playSound(SoundEvents.ENTITY_HORSE_SADDLE.value(), 1.0F, 1.0F);
+                player.playSound(SoundEvents.HORSE_SADDLE.value(), 1.0F, 1.0F);
             }
         }
     }
 
-    private ActionResult onUseItem(ServerPlayerEntity player, Hand hand) {
-        ItemStack heldStack = player.getStackInHand(hand);
+    private InteractionResult onUseItem(ServerPlayer player, InteractionHand hand) {
+        ItemStack heldStack = player.getItemInHand(hand);
 
         if (heldStack.getItem() == Items.SADDLE) {
             FfParticipant participant = this.getParticipant(player);
             if (participant != null) {
                 EntityHitResult traceResult = EntityRayTrace.rayTrace(player, 5.0, 0.5, entity -> {
-                    return entity instanceof FarmSheepEntity && !entity.hasVehicle() && entity.canHit();
+                    return entity instanceof FarmSheepEntity && !entity.isPassenger() && entity.isPickable();
                 });
 
                 if (traceResult != null) {
                     this.tryPickUpSheep(player, participant, (FarmSheepEntity) traceResult.getEntity());
-                    return ActionResult.CONSUME;
+                    return InteractionResult.CONSUME;
                 }
             }
         } else if (heldStack.getItem() instanceof AxeItem) {
-            ItemCooldownManager cooldown = player.getItemCooldownManager();
-            if (!cooldown.isCoolingDown(heldStack)) {
+            ItemCooldowns cooldown = player.getCooldowns();
+            if (!cooldown.isOnCooldown(heldStack)) {
                 FfParticipant participant = this.getParticipant(player);
                 if (participant != null) {
-                    Vec3d rotationVec = player.getRotationVec(1.0F);
-                    player.setVelocity(rotationVec.multiply(LEAP_VELOCITY));
-                    player.networkHandler.sendPacket(new EntityVelocityUpdateS2CPacket(player));
+                    Vec3 rotationVec = player.getViewVector(1.0F);
+                    player.setDeltaMovement(rotationVec.scale(LEAP_VELOCITY));
+                    player.connection.send(new ClientboundSetEntityMotionPacket(player));
 
-                    player.playSound(SoundEvents.ENTITY_HORSE_SADDLE.value(), 1.0F, 1.0F);
-                    cooldown.set(heldStack, LEAP_INTERVAL_TICKS);
+                    player.playSound(SoundEvents.HORSE_SADDLE.value(), 1.0F, 1.0F);
+                    cooldown.addCooldown(heldStack, LEAP_INTERVAL_TICKS);
                 }
             }
         }
 
-        return ActionResult.PASS;
+        return InteractionResult.PASS;
     }
 
-    public boolean tryPickUpSheep(ServerPlayerEntity player, FfParticipant participant, FarmSheepEntity sheep) {
-        GameTeamKey currentTeam = this.captureLogic.getTeamAt(sheep.getPos());
+    public boolean tryPickUpSheep(ServerPlayer player, FfParticipant participant, FarmSheepEntity sheep) {
+        GameTeamKey currentTeam = this.captureLogic.getTeamAt(sheep.position());
         if (currentTeam == participant.team) {
             return false;
         }
 
-        if (sheep.tryPickUp(this.world.getTime(), participant.team)) {
+        if (sheep.tryPickUp(this.world.getGameTime(), participant.team)) {
             return participant.carryStack.tryAdd(player, sheep);
         }
 
@@ -372,17 +372,17 @@ public final class FfActive {
     }
 
     public void tickSheep(FarmSheepEntity sheep) {
-        if (this.world.getTime() % 10 == 0) {
+        if (this.world.getGameTime() % 10 == 0) {
             GameTeamKey lastPickUpTeam = sheep.getLastPickUpTeam();
             if (lastPickUpTeam != null) {
-                GameTeamKey team = this.captureLogic.getTeamAt(sheep.getPos());
+                GameTeamKey team = this.captureLogic.getTeamAt(sheep.position());
                 if (team == lastPickUpTeam) {
                     this.captureLogic.captureSheep(sheep, team);
                 }
             }
 
-            if (!sheep.hasVehicle() && this.shouldRespawnSheep(sheep)) {
-                Vec3d respawnPos = sheep.getLastDropPos();
+            if (!sheep.isPassenger() && this.shouldRespawnSheep(sheep)) {
+                Vec3 respawnPos = sheep.getLastDropPos();
                 if (respawnPos == null) {
                     BlockBounds home = sheep.getHome();
                     if (home == null) {
@@ -392,9 +392,9 @@ public final class FfActive {
                     respawnPos = home.center();
                 }
 
-                sheep.detach();
+                sheep.unRide();
                 sheep.teleportWithPoof(respawnPos.x, respawnPos.y, respawnPos.z);
-                sheep.setFireTicks(0);
+                sheep.setRemainingFireTicks(0);
             }
         }
     }
@@ -405,7 +405,7 @@ public final class FfActive {
             return true;
         }
 
-        BlockPos sheepPos = sheep.getBlockPos();
+        BlockPos sheepPos = sheep.blockPosition();
         for (BlockBounds region : this.map.getIllegalSheepRegions()) {
             if (region.contains(sheepPos)) {
                 return true;
@@ -415,37 +415,37 @@ public final class FfActive {
         return false;
     }
 
-    private void tickSheepStack(ServerPlayerEntity player, FfParticipant participant) {
+    private void tickSheepStack(ServerPlayer player, FfParticipant participant) {
         if (participant.carryStack.isEmpty()) {
             return;
         }
 
-        GameTeamKey captureTeam = this.captureLogic.getTeamAt(player.getPos());
+        GameTeamKey captureTeam = this.captureLogic.getTeamAt(player.position());
         if (captureTeam == participant.team) {
             List<FarmSheepEntity> entities = participant.carryStack.dropAll(player);
             this.throwEntities(player, entities, 0.5);
         }
     }
 
-    private void throwEntities(ServerPlayerEntity player, Collection<FarmSheepEntity> entities, double strength) {
-        Vec3d rotation = player.getRotationVec(1.0F);
+    private void throwEntities(ServerPlayer player, Collection<FarmSheepEntity> entities, double strength) {
+        Vec3 rotation = player.getViewVector(1.0F);
         for (FarmSheepEntity sheep : entities) {
-            sheep.setVelocity(rotation.multiply(strength));
+            sheep.setDeltaMovement(rotation.scale(strength));
             sheep.drop();
         }
     }
 
-    private EventResult onPlayerDeath(ServerPlayerEntity player, DamageSource source) {
-        MutableText message;
+    private EventResult onPlayerDeath(ServerPlayer player, DamageSource source) {
+        MutableComponent message;
 
-        Entity attackerEntity = source.getAttacker();
-        if (attackerEntity instanceof ServerPlayerEntity) {
+        Entity attackerEntity = source.getEntity();
+        if (attackerEntity instanceof ServerPlayer) {
             message = player.getDisplayName().copy()
-                    .append(Text.literal(" was killed by ").formatted(Formatting.GRAY))
+                    .append(Component.literal(" was killed by ").withStyle(ChatFormatting.GRAY))
                     .append(attackerEntity.getDisplayName());
         } else {
             message = player.getDisplayName().copy()
-                    .append(Text.literal(" died").formatted(Formatting.GRAY));
+                    .append(Component.literal(" died").withStyle(ChatFormatting.GRAY));
         }
 
         this.gameSpace.getPlayers().sendMessage(message);
@@ -454,14 +454,14 @@ public final class FfActive {
         return EventResult.DENY;
     }
 
-    private EventResult onPlayerDamage(ServerPlayerEntity player, DamageSource source, float amount) {
+    private EventResult onPlayerDamage(ServerPlayer player, DamageSource source, float amount) {
         if (amount < 1.0F) {
             return EventResult.PASS;
         }
 
         FfParticipant participant = this.getParticipant(player);
         if (participant != null) {
-            FfParticipant attackerParticipant = this.getParticipant(source.getAttacker());
+            FfParticipant attackerParticipant = this.getParticipant(source.getEntity());
             if (attackerParticipant != null && attackerParticipant.team == participant.team) {
                 return EventResult.DENY;
             }
@@ -469,7 +469,7 @@ public final class FfActive {
             participant.carryStack.dropAll(player);
         }
 
-        if (!player.isSpectator() && source.isOf(DamageTypes.LAVA)) {
+        if (!player.isSpectator() && source.is(DamageTypes.LAVA)) {
             this.respawnPlayer(player);
             return EventResult.DENY;
         }
@@ -477,56 +477,56 @@ public final class FfActive {
         return EventResult.PASS;
     }
 
-    private void respawnPlayer(ServerPlayerEntity player) {
+    private void respawnPlayer(ServerPlayer player) {
         FfParticipant participant = this.getParticipant(player);
         if (participant != null) {
-            participant.startRespawn(this.world.getTime());
-            this.spawnLogic.resetPlayer(player, GameMode.SPECTATOR);
+            participant.startRespawn(this.world.getGameTime());
+            this.spawnLogic.resetPlayer(player, GameType.SPECTATOR);
 
-            player.sendMessage(Text.literal("You will respawn in " + RESPAWN_SECONDS + " seconds..").formatted(Formatting.BOLD), false);
+            player.sendSystemMessage(Component.literal("You will respawn in " + RESPAWN_SECONDS + " seconds..").withStyle(ChatFormatting.BOLD), false);
         }
     }
 
-    private void spawnParticipant(ServerPlayerEntity player, FfParticipant participant) {
+    private void spawnParticipant(ServerPlayer player, FfParticipant participant) {
         GameTeamKey team = participant.team;
 
         var teamConfig = this.teamManager.getTeamConfig(team);
 
         this.spawnLogic.spawnPlayerAtTeam(player, team);
-        this.spawnLogic.resetPlayer(player, GameMode.ADVENTURE);
+        this.spawnLogic.resetPlayer(player, GameType.ADVENTURE);
 
-        player.getInventory().insertStack(0, SWORD.build());
-        player.getInventory().insertStack(1, AXE.build());
-        player.getInventory().insertStack(2, BOW.build());
-        player.getInventory().insertStack(4, SADDLE.build());
+        player.getInventory().add(0, SWORD.build());
+        player.getInventory().add(1, AXE.build());
+        player.getInventory().add(2, BOW.build());
+        player.getInventory().add(4, SADDLE.build());
 
-        player.getInventory().insertStack(8,
+        player.getInventory().add(8,
                 ItemStackBuilder.of(ColoredBlocks.wool(teamConfig.blockDyeColor()))
                         .setName(teamConfig.name().copy().append(" Team")
-                                .formatted(teamConfig.chatFormatting())
+                                .withStyle(teamConfig.chatFormatting())
                         )
                         .build()
         );
 
-        int color = teamConfig.dyeColor().getRgb();
-        player.equipStack(EquipmentSlot.HEAD, ItemStackBuilder.of(Items.LEATHER_HELMET).setUnbreakable().setDyeColor(color).build());
-        player.equipStack(EquipmentSlot.CHEST, ItemStackBuilder.of(Items.LEATHER_CHESTPLATE).setUnbreakable().setDyeColor(color).build());
-        player.equipStack(EquipmentSlot.LEGS, ItemStackBuilder.of(Items.LEATHER_LEGGINGS).setUnbreakable().setDyeColor(color).build());
-        player.equipStack(EquipmentSlot.FEET, ItemStackBuilder.of(Items.LEATHER_BOOTS).setUnbreakable().setDyeColor(color).build());
+        int color = teamConfig.dyeColor().getValue();
+        player.setItemSlot(EquipmentSlot.HEAD, ItemStackBuilder.of(Items.LEATHER_HELMET).setUnbreakable().setDyeColor(color).build());
+        player.setItemSlot(EquipmentSlot.CHEST, ItemStackBuilder.of(Items.LEATHER_CHESTPLATE).setUnbreakable().setDyeColor(color).build());
+        player.setItemSlot(EquipmentSlot.LEGS, ItemStackBuilder.of(Items.LEATHER_LEGGINGS).setUnbreakable().setDyeColor(color).build());
+        player.setItemSlot(EquipmentSlot.FEET, ItemStackBuilder.of(Items.LEATHER_BOOTS).setUnbreakable().setDyeColor(color).build());
     }
 
     private void broadcastWinResult(WinResult result) {
         GameTeamKey winningTeam = result.winningTeam();
 
-        Text message;
+        Component message;
         if (winningTeam != null) {
             var teamConfig = this.teamManager.getTeamConfig(winningTeam);
 
             message = teamConfig.name().copy().append(" won the game!")
-                    .formatted(Formatting.BOLD, teamConfig.chatFormatting());
+                    .withStyle(ChatFormatting.BOLD, teamConfig.chatFormatting());
         } else {
-            message = Text.literal("The game ended in a draw!")
-                    .formatted(Formatting.BOLD, Formatting.GRAY);
+            message = Component.literal("The game ended in a draw!")
+                    .withStyle(ChatFormatting.BOLD, ChatFormatting.GRAY);
         }
 
         this.gameSpace.getPlayers().sendMessage(message);
@@ -540,17 +540,17 @@ public final class FfActive {
         return this.teams.get(team).participants();
     }
 
-    public Stream<ServerPlayerEntity> players() {
+    public Stream<ServerPlayer> players() {
         return this.playersBy(this.participants().map(participant -> participant.playerId));
     }
 
-    public Stream<ServerPlayerEntity> playersFor(GameTeamKey team) {
+    public Stream<ServerPlayer> playersFor(GameTeamKey team) {
         return this.playersBy(this.participantsFor(team));
     }
 
-    private Stream<ServerPlayerEntity> playersBy(Stream<UUID> participants) {
+    private Stream<ServerPlayer> playersBy(Stream<UUID> participants) {
         return participants
-                .map(id -> (ServerPlayerEntity) this.world.getPlayerByUuid(id))
+                .map(id -> (ServerPlayer) this.world.getPlayerByUUID(id))
                 .filter(Objects::nonNull);
     }
 
@@ -562,8 +562,8 @@ public final class FfActive {
         return this.teams.get(team);
     }
 
-    private FfParticipant getOrCreateParticipant(ServerPlayerEntity player) {
-        return this.participants.computeIfAbsent(player.getUuid(), uuid -> {
+    private FfParticipant getOrCreateParticipant(ServerPlayer player) {
+        return this.participants.computeIfAbsent(player.getUUID(), uuid -> {
             FfTeamState teamState = this.teams.get(this.teamManager.teamFor(player));
 
             teamState.addParticipant(uuid);
@@ -578,7 +578,7 @@ public final class FfActive {
         if (entity == null) {
             return null;
         }
-        return this.participants.get(entity.getUuid());
+        return this.participants.get(entity.getUUID());
     }
 
     private record WinResult(@Nullable GameTeamKey winningTeam, boolean win) {

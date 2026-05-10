@@ -1,11 +1,11 @@
 package xyz.nucleoid.farmyfeud.game;
 
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
-import xyz.nucleoid.fantasy.RuntimeWorldConfig;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.Vec3;
+import xyz.nucleoid.fantasy.RuntimeLevelConfig;
 import xyz.nucleoid.farmyfeud.game.active.FfActive;
 import xyz.nucleoid.farmyfeud.game.map.FfMap;
 import xyz.nucleoid.farmyfeud.game.map.FfMapBuilder;
@@ -22,7 +22,7 @@ import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
 public final class FfWaiting {
-    private final ServerWorld world;
+    private final ServerLevel world;
     private final GameSpace gameSpace;
     private final FfMap map;
     private final FfConfig config;
@@ -30,7 +30,7 @@ public final class FfWaiting {
     private final FfSpawnLogic spawnLogic;
     private final TeamSelectionLobby teamSelection;
 
-    private FfWaiting(GameSpace gameSpace, ServerWorld world, FfMap map, FfConfig config, TeamSelectionLobby teamSelection) {
+    private FfWaiting(GameSpace gameSpace, ServerLevel world, FfMap map, FfConfig config, TeamSelectionLobby teamSelection) {
         this.world = world;
         this.gameSpace = gameSpace;
         this.map = map;
@@ -45,16 +45,16 @@ public final class FfWaiting {
 
         FfMap map = new FfMapBuilder(config).create(context.server());
 
-        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+        RuntimeLevelConfig worldConfig = new RuntimeLevelConfig()
                 .setGenerator(map.createGenerator(context.server()));
 
-        return context.openWithWorld(worldConfig, (game, world) -> {
+        return context.openWithLevel(worldConfig, (game, world) -> {
             var teamSelection = TeamSelectionLobby.addTo(game, config.teams());
             GameWaitingLobby.addTo(game, config.players());
             FfWaiting waiting = new FfWaiting(game.getGameSpace(), world, map, config, teamSelection);
 
             game.listen(GamePlayerEvents.OFFER, JoinOffer::accept);
-            game.listen(GamePlayerEvents.ACCEPT, player -> player.teleport(world, map.getCenterSpawn() != null ? map.getCenterSpawn().center() : new Vec3d(0, 256, 0)));
+            game.listen(GamePlayerEvents.ACCEPT, player -> player.teleport(world, map.getCenterSpawn() != null ? map.getCenterSpawn().center() : new Vec3(0, 256, 0)));
             game.listen(GameActivityEvents.REQUEST_START, waiting::requestStart);
             game.listen(GamePlayerEvents.ADD, waiting::addPlayer);
             game.listen(PlayerDeathEvent.EVENT, waiting::onPlayerDeath);
@@ -66,17 +66,17 @@ public final class FfWaiting {
         return GameResult.ok();
     }
 
-    private void addPlayer(ServerPlayerEntity player) {
+    private void addPlayer(ServerPlayer player) {
         this.spawnPlayer(player);
     }
 
-    private EventResult onPlayerDeath(ServerPlayerEntity player, DamageSource source) {
+    private EventResult onPlayerDeath(ServerPlayer player, DamageSource source) {
         this.spawnPlayer(player);
         return EventResult.DENY;
     }
 
-    private void spawnPlayer(ServerPlayerEntity player) {
+    private void spawnPlayer(ServerPlayer player) {
         this.spawnLogic.spawnPlayerAtCenter(player);
-        this.spawnLogic.resetPlayer(player, GameMode.ADVENTURE);
+        this.spawnLogic.resetPlayer(player, GameType.ADVENTURE);
     }
 }

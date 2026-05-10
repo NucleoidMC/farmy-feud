@@ -3,12 +3,12 @@ package xyz.nucleoid.farmyfeud.game;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.util.Identifier;
 import xyz.nucleoid.plasmid.api.game.common.config.WaitingLobbyConfig;
 import xyz.nucleoid.plasmid.api.game.common.team.GameTeam;
 import xyz.nucleoid.plasmid.api.game.common.team.GameTeamList;
 
 import java.util.List;
+import net.minecraft.resources.Identifier;
 
 public record FfConfig(Identifier map, WaitingLobbyConfig players,
                        GameTeamList teams, long gameDuration,

@@ -1,12 +1,12 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
-import net.minecraft.server.network.ServerPlayerEntity;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.farmyfeud.entity.FarmSheepEntity;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.common.team.GameTeamKey;
 
 import java.util.UUID;
+import net.minecraft.server.level.ServerPlayer;
 
 public final class FfParticipant {
     private final GameSpace gameSpace;
@@ -17,9 +17,9 @@ public final class FfParticipant {
 
     private long respawnTime = -1;
 
-    FfParticipant(GameSpace gameSpace, ServerPlayerEntity player, GameTeamKey team) {
+    FfParticipant(GameSpace gameSpace, ServerPlayer player, GameTeamKey team) {
         this.gameSpace = gameSpace;
-        this.playerId = player.getUuid();
+        this.playerId = player.getUUID();
         this.team = team;
     }
 
@@ -36,7 +36,7 @@ public final class FfParticipant {
     }
 
     @Nullable
-    public ServerPlayerEntity player() {
+    public ServerPlayer player() {
         return this.gameSpace.getPlayers().getEntity(this.playerId);
     }
 }
