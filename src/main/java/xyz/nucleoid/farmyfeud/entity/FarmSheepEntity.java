@@ -1,5 +1,6 @@
 package xyz.nucleoid.farmyfeud.entity;
 
+import net.minecraft.world.entity.EntityTypes;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import xyz.nucleoid.farmyfeud.game.active.FfActive;
@@ -42,7 +43,7 @@ public final class FarmSheepEntity extends Sheep {
     private long lastValidTime;
 
     public FarmSheepEntity(Level world, FfActive game) {
-        super(EntityType.SHEEP, world);
+        super(EntityTypes.SHEEP, world);
         this.game = game;
         this.lastValidTime = world.getGameTime();
     }
