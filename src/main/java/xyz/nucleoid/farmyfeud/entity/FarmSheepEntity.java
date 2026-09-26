@@ -1,5 +1,6 @@
 package xyz.nucleoid.farmyfeud.entity;
 
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.EntityTypes;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
@@ -94,7 +95,7 @@ public final class FarmSheepEntity extends Sheep {
             }
         }
 
-        this.randomTeleport(x, y, z, false);
+        this.randomTeleport(x, y, z, false, BlockTags.DANGEROUS_FOR_TELEPORTATION);
     }
 
     @Nullable

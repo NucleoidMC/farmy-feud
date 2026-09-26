@@ -1,5 +1,8 @@
 package xyz.nucleoid.farmyfeud.game.active;
 
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.util.Prediction;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.farmyfeud.FarmyFeud;
 import xyz.nucleoid.farmyfeud.entity.FarmSheepEntity;
@@ -47,7 +50,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.AxeItem;
+
 import net.minecraft.world.item.ItemCooldowns;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -269,7 +272,7 @@ public final class FfActive {
         if (time >= this.nextArrowTime) {
             this.players().forEach(player -> {
                 if (player.getInventory().countItem(Items.ARROW) < this.config.maxArrows()) {
-                    player.getInventory().placeItemBackInInventory(new ItemStack(Items.ARROW));
+                    player.getInventory().placeItemBackInInventory(new ItemStack(Items.ARROW), Prediction.SERVER_ONLY);
                 }
             });
 
@@ -304,7 +307,7 @@ public final class FfActive {
         entity.snapTo(spawnPos.x, spawnPos.y + 0.5, spawnPos.z, 0.0F, 0.0F);
 
         entity.setOwnerTeam(null, centerSpawn);
-        entity.setInvulnerable(true);
+        entity.setPermanentlyInvulnerable(true);
 
         if (!this.world.addFreshEntity(entity)) {
             FarmyFeud.LOGGER.warn("Chunk not loaded to spawn sheep entity!");
@@ -320,7 +323,7 @@ public final class FfActive {
                 List<FarmSheepEntity> entities = participant.carryStack.dropAll(player);
                 this.throwEntities(player, entities, 1.0);
 
-                player.playSound(SoundEvents.HORSE_SADDLE.value(), 1.0F, 1.0F);
+                player.level().playSound(null, player.getX(), player.getY(), player.getZ(),SoundEvents.HORSE_SADDLE.value(), SoundSource.PLAYERS, 1.0F, 1.0F);
             }
         }
     }
@@ -340,7 +343,7 @@ public final class FfActive {
                     return InteractionResult.CONSUME;
                 }
             }
-        } else if (heldStack.getItem() instanceof AxeItem) {
+        } else if (heldStack.is(ItemTags.AXES)) {
             ItemCooldowns cooldown = player.getCooldowns();
             if (!cooldown.isOnCooldown(heldStack)) {
                 FfParticipant participant = this.getParticipant(player);
@@ -349,7 +352,7 @@ public final class FfActive {
                     player.setDeltaMovement(rotationVec.scale(LEAP_VELOCITY));
                     player.connection.send(new ClientboundSetEntityMotionPacket(player));
 
-                    player.playSound(SoundEvents.HORSE_SADDLE.value(), 1.0F, 1.0F);
+                    player.level().playSound(null, player.getX(), player.getY(), player.getZ(),SoundEvents.HORSE_SADDLE.value(), SoundSource.PLAYERS, 1.0F, 1.0F);
                     cooldown.addCooldown(heldStack, LEAP_INTERVAL_TICKS);
                 }
             }
